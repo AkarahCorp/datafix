@@ -53,6 +53,27 @@ impl Dynamic {
             _ => None,
         }
     }
+
+    pub fn as_string_mut(&mut self) -> Option<&mut str> {
+        match self {
+            Dynamic::String(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_list_mut(&mut self) -> Option<&DynamicList> {
+        match self {
+            Dynamic::List(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_object_mut(&mut self) -> Option<&mut DynamicObject> {
+        match self {
+            Dynamic::Object(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
