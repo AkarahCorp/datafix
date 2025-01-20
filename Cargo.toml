@@ -1,0 +1,6 @@
+[package]
+name = "datafix"
+version = "0.1.0"
+edition = "2024"
+authors = ["akarahdev"]
+description = "A library to serialize & deserialize data and upgrade data between versions"
