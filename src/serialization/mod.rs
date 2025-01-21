@@ -2,7 +2,7 @@ pub mod combinators;
 pub mod primitives;
 
 use crate::{dynamic::Dynamic, result::DataResult};
-use combinators::ListCodec;
+use combinators::{ListCodec, XMapCodec};
 use std::marker::PhantomData;
 
 pub trait Codec<T>
@@ -15,6 +15,19 @@ where
     fn list_of(self) -> impl Codec<Vec<T>> {
         ListCodec {
             inner: self,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U>
+    where
+        F: Fn(T) -> U,
+        G: Fn(U) -> T,
+    {
+        XMapCodec {
+            inner: self,
+            f: to_new,
+            g: from_new,
             _phantom: PhantomData,
         }
     }
@@ -47,5 +60,20 @@ mod tests {
         let decoded = f64::codec().list_of().from_dyn(encoded).unwrap();
 
         assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn xmap_codec() {
+        let value = 15.0;
+
+        let codec = f64::codec().xmap::<String, _, _>(
+            |v| v.to_string(),
+            |s| s.parse::<f64>().unwrap_or_else(|_| 0.0),
+        );
+
+        let encoded = codec.into_dyn(value.to_string()).unwrap();
+        let decoded = codec.from_dyn(encoded).unwrap();
+
+        assert_eq!(value.to_string(), decoded);
     }
 }
