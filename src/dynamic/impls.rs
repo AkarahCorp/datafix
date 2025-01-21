@@ -1,3 +1,8 @@
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
+
 use super::{Dynamic, list::DynamicList, object::DynamicObject};
 
 impl From<f64> for Dynamic {

@@ -1,16 +1,18 @@
-use std::collections::HashMap;
-
 use super::Dynamic;
+use alloc::{
+    collections::BTreeMap,
+    string::{String, ToString},
+};
 
 #[derive(Clone, Debug)]
 pub struct DynamicObject {
-    inner: HashMap<String, Dynamic>,
+    inner: BTreeMap<String, Dynamic>,
 }
 
 impl DynamicObject {
     pub fn new() -> DynamicObject {
         DynamicObject {
-            inner: HashMap::new(),
+            inner: BTreeMap::new(),
         }
     }
 

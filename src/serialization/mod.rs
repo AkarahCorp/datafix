@@ -2,8 +2,9 @@ pub mod combinators;
 pub mod primitives;
 
 use crate::{dynamic::Dynamic, result::DataResult};
+use alloc::vec::Vec;
 use combinators::{ListCodec, XMapCodec};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub trait Codec<T>
 where
@@ -42,6 +43,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use alloc::{
+        string::{String, ToString},
+        vec,
+    };
+
     use super::{Codec, DefaultCodec};
 
     #[test]
@@ -64,7 +70,7 @@ mod tests {
 
     #[test]
     fn xmap_codec() {
-        let value = 15.0;
+        let value: f32 = 15.0;
 
         let codec = f64::codec().xmap::<String, _, _>(
             |v| v.to_string(),
