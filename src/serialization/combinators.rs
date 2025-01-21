@@ -34,3 +34,32 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
         Ok(vector)
     }
 }
+
+pub struct XMapCodec<T, U, C, F, G>
+where
+    C: Codec<T>,
+    F: Fn(T) -> U,
+    G: Fn(U) -> T,
+{
+    inner: C,
+    f: F,
+    g: G,
+    _phantom: PhantomData<fn() -> (T, U)>,
+}
+
+impl<T, U, C, F, G> Codec<U> for XMapCodec<T, U, C, F, G>
+where
+    C: Codec<T>,
+    F: Fn(T) -> U,
+    G: Fn(U) -> T,
+{
+    // goal: U -> T
+    fn into_dyn(&self, value: U) -> DataResult<Dynamic> {
+        self.inner.into_dyn((self.g)(value))
+    }
+
+    // goal: T -> U
+    fn from_dyn(&self, value: Dynamic) -> DataResult<U> {
+        Ok((self.f)(self.inner.from_dyn(value)?))
+    }
+}
