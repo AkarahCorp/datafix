@@ -1,6 +1,9 @@
-use crate::dynamic::Dynamic;
+use crate::{
+    dynamic::Dynamic,
+    result::{DataError, DataResult},
+};
 
-use super::{Codec, DataError, DataResult, Primitives};
+use super::{Codec, Primitives};
 
 impl Primitives {
     pub const fn f64() -> impl Codec<f64> {

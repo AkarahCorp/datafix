@@ -1,6 +1,4 @@
-use crate::dynamic::Dynamic;
-
-use super::DataResult;
+use crate::{dynamic::Dynamic, result::DataResult};
 
 pub trait Codec<T> {
     fn into_dyn(&self, value: T) -> DataResult<Dynamic>;
