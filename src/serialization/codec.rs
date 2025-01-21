@@ -1,8 +1,10 @@
 use crate::dynamic::Dynamic;
 
+use super::DataResult;
+
 pub trait Codec<T> {
-    fn into_dyn(&self, value: T) -> Option<Dynamic>;
-    fn from_dyn(&self, value: Dynamic) -> Option<T>;
+    fn into_dyn(&self, value: T) -> DataResult<Dynamic>;
+    fn from_dyn(&self, value: Dynamic) -> DataResult<T>;
 }
 
 pub struct Primitives;
