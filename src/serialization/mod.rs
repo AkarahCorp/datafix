@@ -6,11 +6,21 @@ use alloc::vec::Vec;
 use combinators::{ListCodec, XMapCodec};
 use core::marker::PhantomData;
 
+/// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
+/// [`Codec`]s are lazy, they don't do anything by themselves.
+/// You need to call [`Codec::into_dyn`], [`Codec::from_dyn`] to change between `T` and [`Dynamic`].
+/// For more complex use cases, you can call helper methods such as [`Codec::list_of`] and [`Codec::xmap`].
+///
+/// For implementors, try to keep implementations of this trait pure, immutable, and deterministic.
 pub trait Codec<T>
 where
     Self: Sized,
 {
+    /// Transform a value of type `T` into a [`Dynamic`], optionally returning an error.
+    /// For implementors, this function should be pure and have no side effects.
     fn into_dyn(&self, value: T) -> DataResult<Dynamic>;
+    /// Transforms a [`Dynamic`] value into a type `T`, optionally returning an error.
+    /// For implementors, this function should be pure and have no side effects.
     fn from_dyn(&self, value: Dynamic) -> DataResult<T>;
 
     fn list_of(self) -> impl Codec<Vec<T>> {
@@ -48,6 +58,8 @@ mod tests {
         vec,
     };
 
+    use crate::dynamic::Dynamic;
+
     use super::{Codec, DefaultCodec};
 
     #[test]
@@ -78,8 +90,8 @@ mod tests {
         );
 
         let encoded = codec.into_dyn(value.to_string()).unwrap();
+        assert_eq!(encoded, Dynamic::new(15.0));
         let decoded = codec.from_dyn(encoded).unwrap();
-
         assert_eq!(value.to_string(), decoded);
     }
 }
