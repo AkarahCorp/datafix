@@ -19,17 +19,22 @@ where
     }
 }
 
-pub struct Primitives;
+pub trait DefaultCodec
+where
+    Self: Sized,
+{
+    fn codec() -> impl Codec<Self>;
+}
 
 #[cfg(test)]
 mod tests {
-    use super::{Codec, Primitives};
+    use super::{Codec, DefaultCodec};
 
     #[test]
     fn f64_codec() {
         let value = 10.0;
-        let encoded = Primitives::f64().into_dyn(value).unwrap();
-        let decoded = Primitives::f64().from_dyn(encoded).unwrap();
+        let encoded = f64::codec().into_dyn(value).unwrap();
+        let decoded = f64::codec().from_dyn(encoded).unwrap();
         assert_eq!(value, decoded);
     }
 
@@ -37,8 +42,8 @@ mod tests {
     fn vec_codec() {
         let value = vec![10.0, 20.0, 30.0];
 
-        let encoded = Primitives::f64().list_of().into_dyn(value.clone()).unwrap();
-        let decoded = Primitives::f64().list_of().from_dyn(encoded).unwrap();
+        let encoded = f64::codec().list_of().into_dyn(value.clone()).unwrap();
+        let decoded = f64::codec().list_of().from_dyn(encoded).unwrap();
 
         assert_eq!(value, decoded);
     }

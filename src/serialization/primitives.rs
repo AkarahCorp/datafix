@@ -3,13 +3,7 @@ use crate::{
     result::{DataError, DataResult},
 };
 
-use super::{Codec, Primitives};
-
-impl Primitives {
-    pub fn f64() -> impl Codec<f64> {
-        F64Codec
-    }
-}
+use super::Codec;
 
 pub struct F64Codec;
 
