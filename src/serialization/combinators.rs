@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 
 use crate::{
     dynamic::{Dynamic, list::DynamicList},
+    fixers::DataFixerRule,
     result::{DataError, DataResult},
 };
 
@@ -60,5 +61,24 @@ where
 
     fn from_dyn(&self, value: Dynamic) -> DataResult<U> {
         Ok((self.f)(self.inner.from_dyn(value)?))
+    }
+}
+
+pub struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
+    pub(crate) inner: C,
+    pub(crate) rule: R,
+    pub(crate) _phantom: PhantomData<T>,
+}
+
+impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
+    fn into_dyn(&self, value: T) -> DataResult<Dynamic> {
+        let mut dynamic = self.inner.into_dyn(value)?;
+        self.rule.fix_dyn(&mut dynamic);
+        Ok(dynamic)
+    }
+
+    fn from_dyn(&self, mut value: Dynamic) -> DataResult<T> {
+        self.rule.fix_dyn(&mut value);
+        self.inner.from_dyn(value)
     }
 }

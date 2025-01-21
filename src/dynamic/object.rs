@@ -28,10 +28,18 @@ impl DynamicObject {
         self.inner.insert(key.into(), value.into());
     }
 
+    pub fn remove(&mut self, key: &str) -> Option<Dynamic> {
+        self.inner.remove(key)
+    }
+
     pub fn map<F: FnOnce(&Dynamic) -> Dynamic>(&mut self, key: &str, f: F) {
         if let Some(value) = self.get(key) {
             self.insert(key.to_string(), f(value));
         }
+    }
+
+    pub fn has_key(&self, key: &str) -> bool {
+        self.inner.contains_key(key)
     }
 }
 

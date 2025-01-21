@@ -1,3 +1,5 @@
+use alloc::format;
+
 use crate::{
     dynamic::Dynamic,
     result::{DataError, DataResult},
@@ -16,7 +18,7 @@ impl Codec<f64> for F64Codec {
         value
             .as_number()
             .copied()
-            .ok_or_else(|| DataError::new("Expected f64"))
+            .ok_or_else(|| DataError::new(&format!("Expected f64, found {:?}", value)))
     }
 }
 

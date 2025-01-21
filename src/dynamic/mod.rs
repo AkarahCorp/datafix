@@ -3,6 +3,7 @@ use list::DynamicList;
 use object::DynamicObject;
 
 pub mod impls;
+pub mod lens;
 pub mod list;
 pub mod object;
 

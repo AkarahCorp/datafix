@@ -1,9 +1,9 @@
 pub mod combinators;
 pub mod primitives;
 
-use crate::{dynamic::Dynamic, result::DataResult};
+use crate::{dynamic::Dynamic, fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
-use combinators::{ListCodec, XMapCodec};
+use combinators::{DataFixCodec, ListCodec, XMapCodec};
 use core::marker::PhantomData;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -42,6 +42,14 @@ where
             _phantom: PhantomData,
         }
     }
+
+    fn fixer<R: DataFixerRule>(self, rule: R) -> impl Codec<T> {
+        DataFixCodec {
+            inner: self,
+            rule,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 pub trait DefaultCodec
@@ -58,7 +66,11 @@ mod tests {
         vec,
     };
 
-    use crate::dynamic::Dynamic;
+    use crate::{
+        dynamic::{Dynamic, object::DynamicObject},
+        fixers::DataFixerRule,
+        result::DataError,
+    };
 
     use super::{Codec, DefaultCodec};
 
@@ -93,5 +105,58 @@ mod tests {
         assert_eq!(encoded, Dynamic::new(15.0));
         let decoded = codec.from_dyn(encoded).unwrap();
         assert_eq!(value.to_string(), decoded);
+    }
+
+    #[test]
+    fn fixer_codec() {
+        #[derive(Debug, PartialEq)]
+        struct Data {
+            x: f64,
+        }
+
+        struct DataCodec;
+        impl Codec<Data> for DataCodec {
+            fn into_dyn(&self, value: Data) -> crate::result::DataResult<Dynamic> {
+                let mut obj = DynamicObject::new();
+                obj.insert("x", value.x);
+                Ok(Dynamic::new(obj))
+            }
+
+            fn from_dyn(&self, mut value: Dynamic) -> crate::result::DataResult<Data> {
+                let Some(value) = value.as_object_mut() else {
+                    return Err(DataError::new("Expected an object type"));
+                };
+                let Some(x) = value.remove("x") else {
+                    return Err(DataError::new("Expected an object type with key `x`"));
+                };
+                let Some(x) = x.as_number() else {
+                    return Err(DataError::new(
+                        "Expected an object type with key `x` of f64",
+                    ));
+                };
+                Ok(Data { x: *x })
+            }
+        }
+
+        struct YToX;
+        impl DataFixerRule for YToX {
+            fn fix_dyn(&self, value: &mut Dynamic) {
+                let object = value.as_object_mut();
+                if let Some(object) = object {
+                    if object.has_key("y") {
+                        let rm = object.remove("y").unwrap();
+                        object.insert("x", rm);
+                    }
+                }
+            }
+        }
+
+        let mut dyn_data = DynamicObject::new();
+        dyn_data.insert("y", 10.0);
+
+        let codec = DataCodec.fixer(YToX);
+
+        let decoded = codec.from_dyn(Dynamic::new(dyn_data)).unwrap();
+        assert_eq!(decoded, Data { x: 10.0 });
     }
 }
