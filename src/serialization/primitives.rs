@@ -3,7 +3,7 @@ use crate::{
     result::{DataError, DataResult},
 };
 
-use super::Codec;
+use super::{Codec, DefaultCodec};
 
 pub struct F64Codec;
 
@@ -17,5 +17,11 @@ impl Codec<f64> for F64Codec {
             .as_number()
             .copied()
             .ok_or_else(|| DataError::new("Expected f64"))
+    }
+}
+
+impl DefaultCodec for f64 {
+    fn codec() -> impl Codec<Self> {
+        F64Codec
     }
 }
