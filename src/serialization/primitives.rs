@@ -6,7 +6,7 @@ use crate::{
 use super::{Codec, Primitives};
 
 impl Primitives {
-    pub const fn f64() -> impl Codec<f64> {
+    pub fn f64() -> impl Codec<f64> {
         F64Codec
     }
 }

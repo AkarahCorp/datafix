@@ -5,4 +5,3 @@ edition = "2024"
 authors = ["akarahdev"]
 description = "A library to serialize & deserialize data and upgrade data between versions"
 license = "MIT"
-license-file = "LICENSE"
