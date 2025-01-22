@@ -78,35 +78,37 @@ impl<P1, P1C: Codec<P1>, P2, P2C: Codec<P2>, Struct>
 mod tests {
     use crate::serialization::{Codec, DefaultCodec, builder::RecordCodecBuilder};
 
+    #[derive(Debug, PartialEq)]
+    struct Pos2d {
+        x: f64,
+        y: f64,
+    }
+
+    impl Pos2d {
+        fn new(x: f64, y: f64) -> Pos2d {
+            Pos2d { x, y }
+        }
+        fn x(&self) -> &f64 {
+            &self.x
+        }
+
+        fn y(&self) -> &f64 {
+            &self.y
+        }
+
+        fn codec() -> impl Codec<Pos2d> {
+            RecordCodecBuilder::new()
+                .field(f64::codec(), "x", Pos2d::x)
+                .field(f64::codec(), "y", Pos2d::y)
+                .build(Pos2d::new)
+        }
+    }
+
     #[test]
     pub fn simple_record() {
-        #[derive(Debug, PartialEq)]
-        struct Pos2d {
-            x: f64,
-            y: f64,
-        }
-
-        impl Pos2d {
-            fn new(x: f64, y: f64) -> Pos2d {
-                Pos2d { x, y }
-            }
-            fn x(&self) -> &f64 {
-                &self.x
-            }
-
-            fn y(&self) -> &f64 {
-                &self.y
-            }
-        }
-
-        let codec = RecordCodecBuilder::new()
-            .field(f64::codec(), "x", Pos2d::x)
-            .field(f64::codec(), "y", Pos2d::y)
-            .build(Pos2d::new);
-
         let value = Pos2d { x: 10.0, y: 15.0 };
-        let encoded = codec.into_dyn(&value).unwrap();
-        let decoded = codec.from_dyn(encoded).unwrap();
+        let encoded = Pos2d::codec().into_dyn(&value).unwrap();
+        let decoded = Pos2d::codec().from_dyn(encoded).unwrap();
 
         assert_eq!(decoded, value);
     }
