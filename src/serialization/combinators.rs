@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use crate::{
-    dynamic::{Dynamic, list::DynamicList},
+    dynamic::{Dynamic, list::DynamicList, object::DynamicObject},
     fixers::DataFixerRule,
     result::{DataError, DataResult},
 };
@@ -80,5 +80,32 @@ impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
     fn from_dyn(&self, mut value: Dynamic) -> DataResult<T> {
         self.rule.fix_dyn(&mut value);
         self.inner.from_dyn(value)
+    }
+}
+
+pub struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
+    pub(crate) left: Lc,
+    pub(crate) right: Rc,
+    pub(crate) _phantom: PhantomData<fn() -> (L, R)>,
+}
+impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
+    fn into_dyn(&self, value: (L, R)) -> DataResult<Dynamic> {
+        let mut object = DynamicObject::new();
+        object.insert("left", self.left.into_dyn(value.0)?);
+        object.insert("right", self.right.into_dyn(value.1)?);
+        Ok(Dynamic::new(object))
+    }
+
+    fn from_dyn(&self, mut value: Dynamic) -> DataResult<(L, R)> {
+        let Some(value) = value.as_object_mut() else {
+            return Err(DataError::new("expected Object{left, right}"));
+        };
+        let Some(left) = value.remove("left") else {
+            return Err(DataError::new("expected Object{left, right}"));
+        };
+        let Some(right) = value.remove("right") else {
+            return Err(DataError::new("expected Object{left, right}"));
+        };
+        Ok((self.left.from_dyn(left)?, self.right.from_dyn(right)?))
     }
 }

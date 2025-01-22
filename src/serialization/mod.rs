@@ -3,7 +3,7 @@ pub mod primitives;
 
 use crate::{dynamic::Dynamic, fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
-use combinators::{DataFixCodec, ListCodec, XMapCodec};
+use combinators::{DataFixCodec, ListCodec, PairCodec, XMapCodec};
 use core::marker::PhantomData;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -39,6 +39,14 @@ where
             inner: self,
             f: to_new,
             g: from_new,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn pair<R>(self, right: impl Codec<R>) -> impl Codec<(T, R)> {
+        PairCodec {
+            left: self,
+            right,
             _phantom: PhantomData,
         }
     }
@@ -105,6 +113,14 @@ mod tests {
         assert_eq!(encoded, Dynamic::new(15.0));
         let decoded = codec.from_dyn(encoded).unwrap();
         assert_eq!(value.to_string(), decoded);
+    }
+
+    #[test]
+    fn pair_codec() {
+        let codec = Codec::pair(f64::codec(), f64::codec());
+        let encoded = codec.into_dyn((10.0, 20.0)).unwrap();
+        let decoded = codec.from_dyn(encoded).unwrap();
+        assert_eq!((10.0, 20.0), decoded);
     }
 
     #[test]
