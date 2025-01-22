@@ -1,4 +1,7 @@
-use alloc::{format, string::String};
+use alloc::{
+    format,
+    string::{String, ToString},
+};
 
 use crate::{
     dynamic::Dynamic,
@@ -14,7 +17,7 @@ impl Codec<f64> for F64Codec {
         Ok(Dynamic::Number(*value))
     }
 
-    fn from_dyn(&self, value: Dynamic) -> DataResult<f64> {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<f64> {
         value
             .as_number()
             .copied()
@@ -35,11 +38,11 @@ impl Codec<String> for StringCodec {
         Ok(Dynamic::String(value.clone()))
     }
 
-    fn from_dyn(&self, value: Dynamic) -> DataResult<String> {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<String> {
         let Dynamic::String(str) = value else {
             return Err(DataError::new("expected String"));
         };
-        Ok(str)
+        Ok(str.to_string())
     }
 }
 
@@ -56,11 +59,11 @@ impl Codec<bool> for BoolCodec {
         Ok(Dynamic::Boolean(*value))
     }
 
-    fn from_dyn(&self, value: Dynamic) -> DataResult<bool> {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<bool> {
         let Dynamic::Boolean(bl) = value else {
             return Err(DataError::new("expected bool"));
         };
-        Ok(bl)
+        Ok(*bl)
     }
 }
 

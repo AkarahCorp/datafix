@@ -108,7 +108,7 @@ mod tests {
     pub fn simple_record() {
         let value = Pos2d { x: 10.0, y: 15.0 };
         let encoded = Pos2d::codec().into_dyn(&value).unwrap();
-        let decoded = Pos2d::codec().from_dyn(encoded).unwrap();
+        let decoded = Pos2d::codec().from_dyn(&encoded).unwrap();
 
         assert_eq!(decoded, value);
     }

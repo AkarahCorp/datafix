@@ -23,7 +23,7 @@ where
     fn into_dyn(&self, value: &T) -> DataResult<Dynamic>;
     /// Transforms a [`Dynamic`] value into a type `T`, optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn from_dyn(&self, value: Dynamic) -> DataResult<T>;
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<T>;
 
     fn list_of(self) -> impl Codec<Vec<T>> {
         ListCodec {
@@ -88,7 +88,7 @@ mod tests {
     fn f64_codec() {
         let value = 10.0;
         let encoded = f64::codec().into_dyn(&value).unwrap();
-        let decoded = f64::codec().from_dyn(encoded).unwrap();
+        let decoded = f64::codec().from_dyn(&encoded).unwrap();
         assert_eq!(value, decoded);
     }
 
@@ -97,7 +97,7 @@ mod tests {
         let value = vec![10.0, 20.0, 30.0];
 
         let encoded = f64::codec().list_of().into_dyn(&value).unwrap();
-        let decoded = f64::codec().list_of().from_dyn(encoded).unwrap();
+        let decoded = f64::codec().list_of().from_dyn(&encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -113,7 +113,7 @@ mod tests {
 
         let encoded = codec.into_dyn(&value.to_string()).unwrap();
         assert_eq!(encoded, Dynamic::new(15.0));
-        let decoded = codec.from_dyn(encoded).unwrap();
+        let decoded = codec.from_dyn(&encoded).unwrap();
         assert_eq!(value.to_string(), decoded);
     }
 
@@ -121,7 +121,7 @@ mod tests {
     fn pair_codec() {
         let codec = Codec::pair(f64::codec(), f64::codec());
         let encoded = codec.into_dyn(&(10.0, 20.0)).unwrap();
-        let decoded = codec.from_dyn(encoded).unwrap();
+        let decoded = codec.from_dyn(&encoded).unwrap();
         assert_eq!((10.0, 20.0), decoded);
     }
 
@@ -140,16 +140,13 @@ mod tests {
                 Ok(Dynamic::new(obj))
             }
 
-            fn from_dyn(&self, mut value: Dynamic) -> crate::result::DataResult<Data> {
-                let Some(value) = value.as_object_mut() else {
+            fn from_dyn(&self, value: &Dynamic) -> crate::result::DataResult<Data> {
+                let Some(value) = value.as_object() else {
                     return Err(DataError::new("Expected an object type"));
                 };
-                let Some(x) = value.remove("x") else {
-                    return Err(DataError::new("Expected an object type with key `x`"));
-                };
-                let Some(x) = x.as_number() else {
+                let Some(Dynamic::Number(x)) = value.get("x") else {
                     return Err(DataError::new(
-                        "Expected an object type with key `x` of f64",
+                        "Expected an object type with key `x` of number",
                     ));
                 };
                 Ok(Data { x: *x })
@@ -174,7 +171,7 @@ mod tests {
 
         let codec = DataCodec.fixer(YToX);
 
-        let decoded = codec.from_dyn(Dynamic::new(dyn_data)).unwrap();
+        let decoded = codec.from_dyn(&Dynamic::new(dyn_data)).unwrap();
         assert_eq!(decoded, Data { x: 10.0 });
     }
 }

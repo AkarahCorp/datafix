@@ -23,7 +23,7 @@ impl Codec<()> for UnitCodec {
         Ok(Dynamic::new(DynamicObject::new()))
     }
 
-    fn from_dyn(&self, value: Dynamic) -> DataResult<()> {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<()> {
         let Dynamic::Object(_) = value else {
             return Err(DataError::new("expected object of {}"));
         };
@@ -52,17 +52,17 @@ where
         Ok(Dynamic::new(object))
     }
 
-    fn from_dyn(&self, mut value: Dynamic) -> DataResult<Struct> {
-        let Some(object) = value.as_object_mut() else {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<Struct> {
+        let Dynamic::Object(object) = value else {
             return Err(DataError::new("expected Object"));
         };
 
-        let Some(p1) = object.remove(&self.codec1.field_name) else {
+        let Some(p1) = object.get(&self.codec1.field_name) else {
             return Err(DataError::new("expected Object with p1"));
         };
 
         Ok((self.into_struct.get().unwrap())(
-            self.codec1.codec.from_dyn(p1)?,
+            self.codec1.codec.from_dyn(&p1)?,
         ))
     }
 }
@@ -95,22 +95,22 @@ where
         Ok(Dynamic::new(object))
     }
 
-    fn from_dyn(&self, mut value: Dynamic) -> DataResult<Struct> {
-        let Some(object) = value.as_object_mut() else {
+    fn from_dyn(&self, value: &Dynamic) -> DataResult<Struct> {
+        let Dynamic::Object(object) = value else {
             return Err(DataError::new("expected Object"));
         };
 
-        let Some(p1) = object.remove(&self.codec1.field_name) else {
+        let Some(p1) = object.get(&self.codec1.field_name) else {
             return Err(DataError::new("expected Object with p1"));
         };
 
-        let Some(p2) = object.remove(&self.codec2.field_name) else {
+        let Some(p2) = object.get(&self.codec2.field_name) else {
             return Err(DataError::new("expected Object with p2"));
         };
 
         Ok((self.into_struct.get().unwrap())(
-            self.codec1.codec.from_dyn(p1)?,
-            self.codec2.codec.from_dyn(p2)?,
+            self.codec1.codec.from_dyn(&p1)?,
+            self.codec2.codec.from_dyn(&p2)?,
         ))
     }
 }
