@@ -41,6 +41,10 @@ impl DynamicObject {
     pub fn has_key(&self, key: &str) -> bool {
         self.inner.contains_key(key)
     }
+
+    pub fn keys(&self) -> impl Iterator<Item = &String> {
+        self.inner.keys()
+    }
 }
 
 impl PartialEq for DynamicObject {

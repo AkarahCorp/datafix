@@ -1,5 +1,6 @@
 pub mod builder;
 pub mod combinators;
+pub mod ops;
 pub mod primitives;
 pub mod record;
 
