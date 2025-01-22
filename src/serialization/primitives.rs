@@ -10,8 +10,8 @@ use super::{Codec, DefaultCodec};
 pub struct F64Codec;
 
 impl Codec<f64> for F64Codec {
-    fn into_dyn(&self, value: f64) -> DataResult<Dynamic> {
-        Ok(Dynamic::Number(value))
+    fn into_dyn(&self, value: &f64) -> DataResult<Dynamic> {
+        Ok(Dynamic::Number(*value))
     }
 
     fn from_dyn(&self, value: Dynamic) -> DataResult<f64> {

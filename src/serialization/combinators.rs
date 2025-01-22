@@ -15,10 +15,10 @@ pub struct ListCodec<T, C: Codec<T>> {
 }
 
 impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
-    fn into_dyn(&self, value: Vec<T>) -> DataResult<Dynamic> {
+    fn into_dyn(&self, value: &Vec<T>) -> DataResult<Dynamic> {
         let mut list = DynamicList::new();
         for element in value {
-            list.push(self.inner.into_dyn(element)?);
+            list.push(self.inner.into_dyn(&element)?);
         }
         Ok(Dynamic::List(list))
     }
@@ -40,8 +40,8 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
 pub struct XMapCodec<T, U, C, F, G>
 where
     C: Codec<T>,
-    F: Fn(T) -> U,
-    G: Fn(U) -> T,
+    F: Fn(&T) -> U,
+    G: Fn(&U) -> T,
 {
     pub(crate) inner: C,
     pub(crate) f: F,
@@ -52,15 +52,15 @@ where
 impl<T, U, C, F, G> Codec<U> for XMapCodec<T, U, C, F, G>
 where
     C: Codec<T>,
-    F: Fn(T) -> U,
-    G: Fn(U) -> T,
+    F: Fn(&T) -> U,
+    G: Fn(&U) -> T,
 {
-    fn into_dyn(&self, value: U) -> DataResult<Dynamic> {
-        self.inner.into_dyn((self.g)(value))
+    fn into_dyn(&self, value: &U) -> DataResult<Dynamic> {
+        self.inner.into_dyn(&(self.g)(value))
     }
 
     fn from_dyn(&self, value: Dynamic) -> DataResult<U> {
-        Ok((self.f)(self.inner.from_dyn(value)?))
+        Ok((self.f)(&self.inner.from_dyn(value)?))
     }
 }
 
@@ -71,8 +71,8 @@ pub struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
 }
 
 impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
-    fn into_dyn(&self, value: T) -> DataResult<Dynamic> {
-        let mut dynamic = self.inner.into_dyn(value)?;
+    fn into_dyn(&self, value: &T) -> DataResult<Dynamic> {
+        let mut dynamic = self.inner.into_dyn(&value)?;
         self.rule.fix_dyn(&mut dynamic);
         Ok(dynamic)
     }
@@ -89,10 +89,10 @@ pub struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
     pub(crate) _phantom: PhantomData<fn() -> (L, R)>,
 }
 impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
-    fn into_dyn(&self, value: (L, R)) -> DataResult<Dynamic> {
+    fn into_dyn(&self, value: &(L, R)) -> DataResult<Dynamic> {
         let mut object = DynamicObject::new();
-        object.insert("left", self.left.into_dyn(value.0)?);
-        object.insert("right", self.right.into_dyn(value.1)?);
+        object.insert("left", self.left.into_dyn(&value.0)?);
+        object.insert("right", self.right.into_dyn(&value.1)?);
         Ok(Dynamic::new(object))
     }
 

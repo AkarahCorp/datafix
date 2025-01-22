@@ -1,5 +1,7 @@
+pub mod builder;
 pub mod combinators;
 pub mod primitives;
+pub mod record;
 
 use crate::{dynamic::Dynamic, fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
@@ -18,7 +20,7 @@ where
 {
     /// Transform a value of type `T` into a [`Dynamic`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn into_dyn(&self, value: T) -> DataResult<Dynamic>;
+    fn into_dyn(&self, value: &T) -> DataResult<Dynamic>;
     /// Transforms a [`Dynamic`] value into a type `T`, optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn from_dyn(&self, value: Dynamic) -> DataResult<T>;
@@ -32,8 +34,8 @@ where
 
     fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U>
     where
-        F: Fn(T) -> U,
-        G: Fn(U) -> T,
+        F: Fn(&T) -> U,
+        G: Fn(&U) -> T,
     {
         XMapCodec {
             inner: self,
@@ -85,7 +87,7 @@ mod tests {
     #[test]
     fn f64_codec() {
         let value = 10.0;
-        let encoded = f64::codec().into_dyn(value).unwrap();
+        let encoded = f64::codec().into_dyn(&value).unwrap();
         let decoded = f64::codec().from_dyn(encoded).unwrap();
         assert_eq!(value, decoded);
     }
@@ -94,7 +96,7 @@ mod tests {
     fn vec_codec() {
         let value = vec![10.0, 20.0, 30.0];
 
-        let encoded = f64::codec().list_of().into_dyn(value.clone()).unwrap();
+        let encoded = f64::codec().list_of().into_dyn(&value).unwrap();
         let decoded = f64::codec().list_of().from_dyn(encoded).unwrap();
 
         assert_eq!(value, decoded);
@@ -109,7 +111,7 @@ mod tests {
             |s| s.parse::<f64>().unwrap_or_else(|_| 0.0),
         );
 
-        let encoded = codec.into_dyn(value.to_string()).unwrap();
+        let encoded = codec.into_dyn(&value.to_string()).unwrap();
         assert_eq!(encoded, Dynamic::new(15.0));
         let decoded = codec.from_dyn(encoded).unwrap();
         assert_eq!(value.to_string(), decoded);
@@ -118,7 +120,7 @@ mod tests {
     #[test]
     fn pair_codec() {
         let codec = Codec::pair(f64::codec(), f64::codec());
-        let encoded = codec.into_dyn((10.0, 20.0)).unwrap();
+        let encoded = codec.into_dyn(&(10.0, 20.0)).unwrap();
         let decoded = codec.from_dyn(encoded).unwrap();
         assert_eq!((10.0, 20.0), decoded);
     }
@@ -132,7 +134,7 @@ mod tests {
 
         struct DataCodec;
         impl Codec<Data> for DataCodec {
-            fn into_dyn(&self, value: Data) -> crate::result::DataResult<Dynamic> {
+            fn into_dyn(&self, value: &Data) -> crate::result::DataResult<Dynamic> {
                 let mut obj = DynamicObject::new();
                 obj.insert("x", value.x);
                 Ok(Dynamic::new(obj))
