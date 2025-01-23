@@ -103,21 +103,6 @@ macro_rules! record_codec {
     };
 }
 
-record_codec! {
-    name: RecordCodec1,
-    fields: {
-        codec1: P1[P1C; P1F]
-    }
-}
-
-record_codec! {
-    name: RecordCodec2,
-    fields: {
-        codec1: P1[P1C; P1F],
-        codec2: P2[P2C; P2F]
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
@@ -160,5 +145,237 @@ mod tests {
         let decoded = Pos2d::codec().decode(&Dynamic::ops(), &encoded).unwrap();
 
         assert_eq!(value, decoded);
+    }
+}
+
+record_codec! {
+    name: RecordCodec1,
+    fields: {
+        codec1: P1[P1C; P1F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec2,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec3,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec4,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec5,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec6,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec7,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec8,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec9,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec10,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec11,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec12,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F],
+        codec12: P12[P12C; P12F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec13,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F],
+        codec12: P12[P12C; P12F],
+        codec13: P13[P13C; P13F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec14,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F],
+        codec12: P12[P12C; P12F],
+        codec13: P13[P13C; P13F],
+        codec14: P14[P14C; P14F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec15,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F],
+        codec12: P12[P12C; P12F],
+        codec13: P13[P13C; P13F],
+        codec14: P14[P14C; P14F],
+        codec15: P15[P15C; P15F]
+    }
+}
+
+record_codec! {
+    name: RecordCodec16,
+    fields: {
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F],
+        codec3: P3[P3C; P3F],
+        codec4: P4[P4C; P4F],
+        codec5: P5[P5C; P5F],
+        codec6: P6[P6C; P6F],
+        codec7: P7[P7C; P7F],
+        codec8: P8[P8C; P8F],
+        codec9: P9[P9C; P9F],
+        codec10: P10[P10C; P10F],
+        codec11: P11[P11C; P11F],
+        codec12: P12[P12C; P12F],
+        codec13: P13[P13C; P13F],
+        codec14: P14[P14C; P14F],
+        codec15: P15[P15C; P15F],
+        codec16: P16[P16C; P16F]
     }
 }
