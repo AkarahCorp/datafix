@@ -5,9 +5,10 @@ mod primitives;
 mod record;
 
 use crate::{fixers::DataFixerRule, result::DataResult};
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
+use record::RecordField;
 
 pub use builder::RecordCodecBuilder;
 pub use ops::CodecOps;
@@ -30,6 +31,19 @@ where
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T>;
+
+    fn field_of<Struct>(
+        self,
+        name: impl Into<String>,
+        getter: fn(&Struct) -> &T,
+    ) -> RecordField<T, Self, Struct> {
+        RecordField {
+            field_name: name.into(),
+            getter,
+            codec: self,
+            _phantom: PhantomData,
+        }
+    }
 
     fn list_of(self) -> impl Codec<Vec<T>> {
         ListCodec {

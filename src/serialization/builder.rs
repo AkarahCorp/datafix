@@ -1,7 +1,5 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
-use alloc::string::String;
-
 use super::{Codec, record::*};
 
 pub struct RecordCodecBuilder<InnerCodec> {
@@ -15,20 +13,13 @@ impl RecordCodecBuilder<UnitCodec> {
         }
     }
 
-    pub fn field<P1, P1C: Codec<P1>, Struct>(
+    pub fn field<P1, P1C: Codec<P1>, NxtField: RecordFieldGetter<P1, P1C, Struct>, Struct>(
         self,
-        codec: P1C,
-        field_name: impl Into<String>,
-        getter: fn(&Struct) -> &P1,
-    ) -> RecordCodecBuilder<RecordCodec1<P1, P1C, RecordField<P1, P1C, Struct>, Struct>> {
+        field: NxtField,
+    ) -> RecordCodecBuilder<RecordCodec1<P1, P1C, NxtField, Struct>> {
         RecordCodecBuilder {
             codec: RecordCodec1 {
-                codec1: RecordField {
-                    field_name: field_name.into(),
-                    getter,
-                    codec,
-                    _phantom: PhantomData,
-                },
+                codec1: field,
                 into_struct: OnceCell::new(),
                 _phantom: PhantomData,
             },
@@ -40,24 +31,17 @@ macro_rules! impl_record_codec_builder {
     (
         type: $type:ident,
         fields: { $($field:ident: $name:ident[$codec:ident, $field_type:ident]),* },
-        next: $next_field_name:ident: $next_type:ident as $next_name:ident[$next_codec:ident]
+        next: $next_field_name:ident: $next_type:ident as $next_name:ident[$next_codec:ident; $next_field_type:ident]
     ) => {
         impl<$($name, $codec: Codec<$name>, $field_type: RecordFieldGetter<$name, $codec, Struct>),*, Struct> RecordCodecBuilder<$type<$($name, $codec, $field_type),*, Struct>> {
-            pub fn field<$next_name, $next_codec: Codec<$next_name>>(
+            pub fn field<$next_name, $next_codec: Codec<$next_name>, NxtField: RecordFieldGetter<$next_name, $next_codec, Struct>>(
                 self,
-                codec: $next_codec,
-                field_name: impl Into<String>,
-                getter: fn(&Struct) -> &$next_name,
-            ) -> RecordCodecBuilder<$next_type<$($name, $codec, $field_type),*, $next_name, $next_codec, RecordField<$next_name, $next_codec, Struct>, Struct>> {
+                field: NxtField
+            ) -> RecordCodecBuilder<$next_type<$($name, $codec, $field_type),*, $next_name, $next_codec, NxtField, Struct>> {
                 RecordCodecBuilder {
                     codec: $next_type {
                         $($field: self.codec.$field),*,
-                        $next_field_name: RecordField {
-                            field_name: field_name.into(),
-                            getter,
-                            codec,
-                            _phantom: PhantomData,
-                        },
+                        $next_field_name: field,
                         into_struct: OnceCell::new(),
                         _phantom: PhantomData,
                     },
@@ -89,7 +73,7 @@ macro_rules! impl_record_codec_builder_last {
 impl_record_codec_builder! {
     type: RecordCodec1,
     fields: { codec1: P1[P1C, P1F] },
-    next: codec2: RecordCodec2 as P2[P2C]
+    next: codec2: RecordCodec2 as P2[P2C; P2F]
 }
 
 impl_record_codec_builder_last! {

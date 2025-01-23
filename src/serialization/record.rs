@@ -117,3 +117,48 @@ record_codec! {
         codec2: P2[P2C; P2F]
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        dynamic::Dynamic,
+        serialization::{Codec, DefaultCodec, RecordCodecBuilder},
+    };
+
+    #[derive(PartialEq, Debug)]
+    pub struct Pos2d {
+        x: f64,
+        y: f64,
+    }
+
+    impl Pos2d {
+        pub fn new(x: f64, y: f64) -> Pos2d {
+            Pos2d { x, y }
+        }
+
+        pub fn x(&self) -> &f64 {
+            &self.x
+        }
+
+        pub fn y(&self) -> &f64 {
+            &self.y
+        }
+
+        pub fn codec() -> impl Codec<Pos2d> {
+            RecordCodecBuilder::new()
+                .field(f64::codec().field_of("x", Pos2d::x))
+                .field(f64::codec().field_of("y", Pos2d::y))
+                .build(Pos2d::new)
+        }
+    }
+
+    #[test]
+    fn struct_codec() {
+        let value = Pos2d::new(15.0, 30.0);
+
+        let encoded = Pos2d::codec().encode(&Dynamic::ops(), &value).unwrap();
+        let decoded = Pos2d::codec().decode(&Dynamic::ops(), &encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+}
