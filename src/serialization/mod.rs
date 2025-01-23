@@ -8,7 +8,7 @@ use crate::{fixers::DataFixerRule, result::DataResult};
 use alloc::{string::String, vec::Vec};
 use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
-use record::RecordField;
+use record::{OptionalField, RecordField};
 
 pub use builder::RecordCodecBuilder;
 pub use ops::CodecOps;
@@ -38,6 +38,19 @@ where
         getter: fn(&Struct) -> &T,
     ) -> RecordField<T, Self, Struct> {
         RecordField {
+            field_name: name.into(),
+            getter,
+            codec: self,
+            _phantom: PhantomData,
+        }
+    }
+
+    fn optional_field_of<Struct>(
+        self,
+        name: impl Into<String>,
+        getter: fn(&Struct) -> &Option<T>,
+    ) -> OptionalField<T, Self, Struct> {
+        OptionalField {
             field_name: name.into(),
             getter,
             codec: self,

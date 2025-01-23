@@ -15,8 +15,8 @@ pub trait CodecOps<T> {
     fn create_number(&self, value: &f64) -> T;
     fn create_string(&self, value: &str) -> T;
     fn create_boolean(&self, value: &bool) -> T;
-    fn create_list(&self, value: &[T]) -> T;
-    fn create_object(&self, pairs: &[(&str, T)]) -> T;
+    fn create_list(&self, value: impl Iterator<Item = T>) -> T;
+    fn create_object(&self, pairs: impl Iterator<Item = (String, T)>) -> T;
     fn create_unit(&self) -> T;
 
     fn get_number(&self, value: &T) -> DataResult<f64>;
@@ -25,4 +25,19 @@ pub trait CodecOps<T> {
     fn get_list(&self, value: &T) -> DataResult<Vec<T>>;
     fn get_object(&self, value: &T) -> DataResult<BTreeMap<String, T>>;
     fn get_unit(&self, value: &T) -> DataResult<()>;
+
+    // This purely exists for Optional Fields. The `Option` represents if a field is present,
+    // the `DataResult` represents the actual field data.
+    // TODO: convert to a no-copy implementation
+    fn create_object_special(
+        &self,
+        pairs: impl IntoIterator<Item = Option<DataResult<(String, T)>>>,
+    ) -> DataResult<T> {
+        let iter1 = pairs
+            .into_iter()
+            .filter_map(|x| x)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(self.create_object(iter1.into_iter()))
+    }
 }

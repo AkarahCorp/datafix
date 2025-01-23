@@ -32,7 +32,7 @@ impl CodecOps<Dynamic> for DynamicOps {
         Dynamic::Boolean(*value)
     }
 
-    fn create_list(&self, value: &[Dynamic]) -> Dynamic {
+    fn create_list(&self, value: impl Iterator<Item = Dynamic>) -> Dynamic {
         let mut list = DynamicList::new();
         for element in value {
             list.push(element.clone());
@@ -40,7 +40,7 @@ impl CodecOps<Dynamic> for DynamicOps {
         Dynamic::List(list)
     }
 
-    fn create_object(&self, pairs: &[(&str, Dynamic)]) -> Dynamic {
+    fn create_object(&self, pairs: impl Iterator<Item = (String, Dynamic)>) -> Dynamic {
         let mut obj = DynamicObject::new();
         for pair in pairs {
             obj.insert(pair.0, pair.1.clone());

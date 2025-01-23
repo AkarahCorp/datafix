@@ -12,6 +12,12 @@ impl DataError {
             message: message.into(),
         }
     }
+
+    pub fn mark_ignorable(self) -> DataError {
+        DataError {
+            message: self.message,
+        }
+    }
 }
 
 impl Debug for DataError {
