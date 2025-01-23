@@ -50,15 +50,15 @@ impl Codec<()> for UnitCodec {
 macro_rules! record_codec {
     (
         name: $struct_name:ident,
-        fields: { $($field:ident: $name:ident[$codec:ident]),* }
+        fields: { $($field:ident: $name:ident[$codec:ident, $field_type:ident]),* }
     ) => {
-        pub struct $struct_name<$($name, $codec: Codec<$name>),*, Struct> {
-            $(pub(crate) $field: RecordField<$name, $codec, Struct>),*,
+        pub struct $struct_name<$($name, $codec: Codec<$name>, $field_type: RecordFieldGetter<$name, $codec, Struct>),*, Struct> {
+            $(pub(crate) $field: $field_type),*,
             pub(crate) into_struct: OnceCell<fn($($name),*) -> Struct>
         }
 
         #[doc(hidden)]
-        impl<$($name, $codec: Codec<$name>),*, Struct> Codec<Struct> for $struct_name<$($name, $codec),*, Struct> {
+        impl<$($name, $codec: Codec<$name>, $field_type: RecordFieldGetter<$name, $codec, Struct>),*, Struct> Codec<Struct> for $struct_name<$($name, $codec),*, Struct> {
             fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
                 Ok(ops.create_object(&[
                     $((
