@@ -1,7 +1,7 @@
 use alloc::{collections::btree_map::BTreeMap, string::String, vec::Vec};
 
 use crate::result::DataResult;
-pub mod dynamic;
+mod dynamic;
 
 /// A [`CodecOps`] represents a way of converting Rust values into the target datatype and vice-versa.
 /// [`CodecOps`] is the recommended way to do this when interacting with [`Codec`].

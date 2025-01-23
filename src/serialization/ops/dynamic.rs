@@ -5,7 +5,7 @@ use alloc::{
 };
 
 use crate::{
-    dynamic::{Dynamic, list::DynamicList, object::DynamicObject},
+    dynamic::{Dynamic, DynamicList, DynamicObject},
     result::{DataError, DataResult},
 };
 

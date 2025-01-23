@@ -37,7 +37,6 @@
 //! ```
 //! You ideally want your user's configuration to be automatically updated with the new data and a sensible default.
 //! This part is currently `todo!()`, sorry. :(
-//!
 #![no_std]
 
 extern crate alloc;

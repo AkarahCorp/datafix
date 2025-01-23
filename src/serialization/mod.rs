@@ -1,14 +1,16 @@
-pub mod builder;
-pub mod combinators;
-pub mod ops;
-pub mod primitives;
-pub mod record;
+mod builder;
+mod combinators;
+mod ops;
+mod primitives;
+mod record;
 
 use crate::{fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
 use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
-use ops::CodecOps;
+
+pub use builder::RecordCodecBuilder;
+pub use ops::CodecOps;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
 /// [`Codec`]s are lazy, they don't do anything by themselves.

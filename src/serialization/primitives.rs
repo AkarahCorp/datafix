@@ -6,7 +6,7 @@ use crate::result::DataResult;
 
 use super::{Codec, DefaultCodec};
 
-pub struct F64Codec;
+pub(crate) struct F64Codec;
 
 impl Codec<f64> for F64Codec {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &f64) -> DataResult<U> {
@@ -24,7 +24,7 @@ impl DefaultCodec for f64 {
     }
 }
 
-pub struct StringCodec;
+pub(crate) struct StringCodec;
 
 impl Codec<String> for StringCodec {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &String) -> DataResult<U> {
@@ -42,7 +42,7 @@ impl DefaultCodec for String {
     }
 }
 
-pub struct BoolCodec;
+pub(crate) struct BoolCodec;
 
 impl Codec<bool> for BoolCodec {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &bool) -> DataResult<U> {
@@ -60,7 +60,7 @@ impl DefaultCodec for bool {
     }
 }
 
-pub trait F64Convertable
+pub(crate) trait F64Convertable
 where
     Self: Sized + Copy,
 {
@@ -94,7 +94,7 @@ macro_rules! impl_f64_convertable {
 
 impl_f64_convertable! { i8, i16, i32, i64, u8, u16, u32, u64, f32, usize, isize }
 
-pub struct NumberCodec<N: F64Convertable> {
+pub(crate) struct NumberCodec<N: F64Convertable> {
     _phantom: PhantomData<fn() -> N>,
 }
 

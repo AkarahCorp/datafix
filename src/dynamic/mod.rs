@@ -1,11 +1,10 @@
 use alloc::string::String;
-use list::DynamicList;
-use object::DynamicObject;
 
 pub mod impls;
-pub mod lens;
-pub mod list;
-pub mod object;
+mod list;
+pub use list::DynamicList;
+mod object;
+pub use object::DynamicObject;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Dynamic {

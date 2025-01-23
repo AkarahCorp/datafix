@@ -6,7 +6,7 @@ use crate::result::{DataError, DataResult};
 
 use super::{Codec, ops::CodecOps};
 
-pub struct RecordField<T, C: Codec<T>, S> {
+pub(crate) struct RecordField<T, C: Codec<T>, S> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&S) -> &T,
     pub(crate) codec: C,

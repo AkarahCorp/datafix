@@ -8,7 +8,7 @@ use crate::{
 
 use super::{Codec, ops::CodecOps};
 
-pub struct ListCodec<T, C: Codec<T>> {
+pub(crate) struct ListCodec<T, C: Codec<T>> {
     pub(crate) inner: C,
     pub(crate) _phantom: PhantomData<T>,
 }
@@ -32,7 +32,7 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
     }
 }
 
-pub struct XMapCodec<T, U, C, F, G>
+pub(crate) struct XMapCodec<T, U, C, F, G>
 where
     C: Codec<T>,
     F: Fn(&T) -> U,
@@ -59,7 +59,7 @@ where
     }
 }
 
-pub struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
+pub(crate) struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
     pub(crate) inner: C,
     pub(crate) rule: R,
     pub(crate) _phantom: PhantomData<T>,
@@ -78,7 +78,7 @@ impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
     }
 }
 
-pub struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
+pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
     pub(crate) left: Lc,
     pub(crate) right: Rc,
     pub(crate) _phantom: PhantomData<fn() -> (L, R)>,
@@ -103,7 +103,7 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
     }
 }
 
-pub struct BoundedCodec<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> {
+pub(crate) struct BoundedCodec<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> {
     pub(crate) codec: C,
     pub(crate) range: R,
     pub(crate) _phantom: PhantomData<fn() -> T>,
