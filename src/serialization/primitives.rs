@@ -1,27 +1,18 @@
-use alloc::{
-    format,
-    string::{String, ToString},
-};
+use alloc::string::String;
 
-use crate::{
-    dynamic::Dynamic,
-    result::{DataError, DataResult},
-};
+use crate::result::DataResult;
 
 use super::{Codec, DefaultCodec};
 
 pub struct F64Codec;
 
 impl Codec<f64> for F64Codec {
-    fn into_dyn(&self, value: &f64) -> DataResult<Dynamic> {
-        Ok(Dynamic::Number(*value))
+    fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &f64) -> DataResult<U> {
+        Ok(ops.create_number(value))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<f64> {
-        value
-            .as_number()
-            .copied()
-            .ok_or_else(|| DataError::new(&format!("Expected f64, found {:?}", value)))
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<f64> {
+        ops.get_number(value)
     }
 }
 
@@ -34,15 +25,12 @@ impl DefaultCodec for f64 {
 pub struct StringCodec;
 
 impl Codec<String> for StringCodec {
-    fn into_dyn(&self, value: &String) -> DataResult<Dynamic> {
-        Ok(Dynamic::String(value.clone()))
+    fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &String) -> DataResult<U> {
+        Ok(ops.create_string(value))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<String> {
-        let Dynamic::String(str) = value else {
-            return Err(DataError::new("expected String"));
-        };
-        Ok(str.to_string())
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<String> {
+        ops.get_string(value)
     }
 }
 
@@ -55,15 +43,12 @@ impl DefaultCodec for String {
 pub struct BoolCodec;
 
 impl Codec<bool> for BoolCodec {
-    fn into_dyn(&self, value: &bool) -> DataResult<Dynamic> {
-        Ok(Dynamic::Boolean(*value))
+    fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &bool) -> DataResult<U> {
+        Ok(ops.create_boolean(value))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<bool> {
-        let Dynamic::Boolean(bl) = value else {
-            return Err(DataError::new("expected bool"));
-        };
-        Ok(*bl)
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<bool> {
+        ops.get_boolean(value)
     }
 }
 

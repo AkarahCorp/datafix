@@ -2,12 +2,9 @@ use core::{cell::OnceCell, marker::PhantomData};
 
 use alloc::string::String;
 
-use crate::{
-    dynamic::{Dynamic, object::DynamicObject},
-    result::{DataError, DataResult},
-};
+use crate::result::{DataError, DataResult};
 
-use super::Codec;
+use super::{Codec, ops::CodecOps};
 
 pub struct RecordField<T, C: Codec<T>, S> {
     pub(crate) field_name: String,
@@ -19,15 +16,12 @@ pub struct RecordField<T, C: Codec<T>, S> {
 pub struct UnitCodec {}
 
 impl Codec<()> for UnitCodec {
-    fn into_dyn(&self, _: &()) -> DataResult<Dynamic> {
-        Ok(Dynamic::new(DynamicObject::new()))
+    fn encode<U, O: CodecOps<U>>(&self, ops: &O, _value: &()) -> DataResult<U> {
+        Ok(ops.create_unit())
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<()> {
-        let Dynamic::Object(_) = value else {
-            return Err(DataError::new("expected object of {}"));
-        };
-        Ok(())
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<()> {
+        ops.get_unit(value)
     }
 }
 
@@ -43,26 +37,20 @@ impl<P1, P1C, Struct> Codec<Struct> for RecordCodec1<P1, P1C, Struct>
 where
     P1C: Codec<P1>,
 {
-    fn into_dyn(&self, value: &Struct) -> DataResult<Dynamic> {
-        let mut object = DynamicObject::new();
-        object.insert(
-            self.codec1.field_name.clone(),
-            self.codec1.codec.into_dyn(&(self.codec1.getter)(value))?,
-        );
-        Ok(Dynamic::new(object))
+    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
+        Ok(ops.create_object(&[(
+            &self.codec1.field_name,
+            self.codec1.codec.encode(ops, (self.codec1.getter)(value))?,
+        )]))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<Struct> {
-        let Dynamic::Object(object) = value else {
-            return Err(DataError::new("expected Object"));
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
+        let obj = ops.get_object(value)?;
+        let Some(p1) = obj.get(&self.codec1.field_name) else {
+            return Err(DataError::new(""));
         };
-
-        let Some(p1) = object.get(&self.codec1.field_name) else {
-            return Err(DataError::new("expected Object with p1"));
-        };
-
         Ok((self.into_struct.get().unwrap())(
-            self.codec1.codec.from_dyn(&p1)?,
+            self.codec1.codec.decode(ops, p1)?,
         ))
     }
 }
@@ -82,35 +70,30 @@ where
     P1C: Codec<P1>,
     P2C: Codec<P2>,
 {
-    fn into_dyn(&self, value: &Struct) -> DataResult<Dynamic> {
-        let mut object = DynamicObject::new();
-        object.insert(
-            self.codec1.field_name.clone(),
-            self.codec1.codec.into_dyn(&(self.codec1.getter)(&value))?,
-        );
-        object.insert(
-            self.codec2.field_name.clone(),
-            self.codec2.codec.into_dyn(&(self.codec2.getter)(&value))?,
-        );
-        Ok(Dynamic::new(object))
+    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
+        Ok(ops.create_object(&[
+            (
+                &self.codec1.field_name,
+                self.codec1.codec.encode(ops, (self.codec1.getter)(value))?,
+            ),
+            (
+                &self.codec2.field_name,
+                self.codec2.codec.encode(ops, (self.codec2.getter)(value))?,
+            ),
+        ]))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<Struct> {
-        let Dynamic::Object(object) = value else {
-            return Err(DataError::new("expected Object"));
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
+        let obj = ops.get_object(value)?;
+        let Some(p1) = obj.get(&self.codec1.field_name) else {
+            return Err(DataError::new(""));
         };
-
-        let Some(p1) = object.get(&self.codec1.field_name) else {
-            return Err(DataError::new("expected Object with p1"));
+        let Some(p2) = obj.get(&self.codec2.field_name) else {
+            return Err(DataError::new(""));
         };
-
-        let Some(p2) = object.get(&self.codec2.field_name) else {
-            return Err(DataError::new("expected Object with p2"));
-        };
-
         Ok((self.into_struct.get().unwrap())(
-            self.codec1.codec.from_dyn(&p1)?,
-            self.codec2.codec.from_dyn(&p2)?,
+            self.codec1.codec.decode(ops, p1)?,
+            self.codec2.codec.decode(ops, p2)?,
         ))
     }
 }

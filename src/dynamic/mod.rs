@@ -14,6 +14,7 @@ pub enum Dynamic {
     Boolean(bool),
     List(DynamicList),
     Object(DynamicObject),
+    Unit,
 }
 
 impl Dynamic {

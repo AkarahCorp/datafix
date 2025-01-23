@@ -2,12 +2,11 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use crate::{
-    dynamic::{Dynamic, list::DynamicList, object::DynamicObject},
     fixers::DataFixerRule,
     result::{DataError, DataResult},
 };
 
-use super::Codec;
+use super::{Codec, ops::CodecOps};
 
 pub struct ListCodec<T, C: Codec<T>> {
     pub(crate) inner: C,
@@ -15,25 +14,21 @@ pub struct ListCodec<T, C: Codec<T>> {
 }
 
 impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
-    fn into_dyn(&self, value: &Vec<T>) -> DataResult<Dynamic> {
-        let mut list = DynamicList::new();
+    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Vec<T>) -> DataResult<U> {
+        let mut list = Vec::new();
         for element in value {
-            list.push(self.inner.into_dyn(&element)?);
+            list.push(self.inner.encode(ops, element)?);
         }
-        Ok(Dynamic::List(list))
+        Ok(ops.create_list(&list))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<Vec<T>> {
-        let Dynamic::List(list) = value else {
-            return Err(DataError::new("expected a List"));
-        };
-
-        let mut vector = Vec::new();
-        for idx in 0..list.len() {
-            let item = list.get(idx).unwrap();
-            vector.push(self.inner.from_dyn(&item)?);
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Vec<T>> {
+        let list = ops.get_list(value)?;
+        let mut vec = Vec::new();
+        for item in list {
+            vec.push(self.inner.decode(ops, &item)?);
         }
-        Ok(vector)
+        Ok(vec)
     }
 }
 
@@ -55,12 +50,12 @@ where
     F: Fn(&T) -> U,
     G: Fn(&U) -> T,
 {
-    fn into_dyn(&self, value: &U) -> DataResult<Dynamic> {
-        self.inner.into_dyn(&(self.g)(value))
+    fn encode<U2, O: CodecOps<U2>>(&self, ops: &O, value: &U) -> DataResult<U2> {
+        self.inner.encode(ops, &(self.g)(value))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<U> {
-        Ok((self.f)(&self.inner.from_dyn(&value)?))
+    fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &OpsType) -> DataResult<U> {
+        Ok((self.f)(&self.inner.decode(ops, value)?))
     }
 }
 
@@ -71,16 +66,15 @@ pub struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
 }
 
 impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
-    fn into_dyn(&self, value: &T) -> DataResult<Dynamic> {
-        let mut dynamic = self.inner.into_dyn(&value)?;
-        self.rule.fix_dyn(&mut dynamic);
-        Ok(dynamic)
+    fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
+        let encoded = self.inner.encode(ops, value)?;
+        let encoded = self.rule.fix(ops, &encoded);
+        Ok(encoded)
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<T> {
-        let mut new_dyn = value.clone();
-        self.rule.fix_dyn(&mut new_dyn);
-        self.inner.from_dyn(&new_dyn)
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
+        let value = self.rule.fix(ops, &value);
+        self.inner.decode(ops, &value)
     }
 }
 
@@ -90,23 +84,17 @@ pub struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
     pub(crate) _phantom: PhantomData<fn() -> (L, R)>,
 }
 impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
-    fn into_dyn(&self, value: &(L, R)) -> DataResult<Dynamic> {
-        let mut object = DynamicObject::new();
-        object.insert("left", self.left.into_dyn(&value.0)?);
-        object.insert("right", self.right.into_dyn(&value.1)?);
-        Ok(Dynamic::new(object))
+    fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &(L, R)) -> DataResult<U> {
+        Ok(ops.create_object(&[
+            ("left", self.left.encode(ops, &value.0)?),
+            ("right", self.right.encode(ops, &value.1)?),
+        ]))
     }
 
-    fn from_dyn(&self, value: &Dynamic) -> DataResult<(L, R)> {
-        let Dynamic::Object(value) = value else {
-            return Err(DataError::new("expected Object{left, right}"));
-        };
-        let Some(left) = value.get("left") else {
-            return Err(DataError::new("expected Object{left, right}"));
-        };
-        let Some(right) = value.get("right") else {
-            return Err(DataError::new("expected Object{left, right}"));
-        };
-        Ok((self.left.from_dyn(&left)?, self.right.from_dyn(&right)?))
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<(L, R)> {
+        let obj = ops.get_object(value)?;
+        let left = obj.get("left").ok_or_else(|| DataError::new(""))?;
+        let right = obj.get("right").ok_or_else(|| DataError::new(""))?;
+        Ok((self.left.decode(ops, left)?, self.right.decode(ops, right)?))
     }
 }

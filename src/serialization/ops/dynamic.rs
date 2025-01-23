@@ -13,6 +13,12 @@ use super::CodecOps;
 
 pub struct DynamicOps;
 
+impl Dynamic {
+    pub fn ops() -> impl CodecOps<Dynamic> {
+        DynamicOps
+    }
+}
+
 impl CodecOps<Dynamic> for DynamicOps {
     fn create_number(&self, value: &f64) -> Dynamic {
         Dynamic::Number(*value)
@@ -26,21 +32,18 @@ impl CodecOps<Dynamic> for DynamicOps {
         Dynamic::Boolean(*value)
     }
 
-    fn create_list<U: super::ConvertWithCodecOps<Dynamic>>(&self, value: &[U]) -> Dynamic {
+    fn create_list(&self, value: &[Dynamic]) -> Dynamic {
         let mut list = DynamicList::new();
-        for item in value {
-            list.push(item.into_type(self));
+        for element in value {
+            list.push(element.clone());
         }
         Dynamic::List(list)
     }
 
-    fn create_object<U: super::ConvertWithCodecOps<Dynamic>>(
-        &self,
-        pairs: &[(&str, U)],
-    ) -> Dynamic {
+    fn create_object(&self, pairs: &[(&str, Dynamic)]) -> Dynamic {
         let mut obj = DynamicObject::new();
         for pair in pairs {
-            obj.insert(pair.0, pair.1.into_type(self));
+            obj.insert(pair.0, pair.1.clone());
         }
         Dynamic::Object(obj)
     }
@@ -66,33 +69,37 @@ impl CodecOps<Dynamic> for DynamicOps {
         }
     }
 
-    fn get_list<U: super::ConvertWithCodecOps<Dynamic>>(
-        &self,
-        value: &Dynamic,
-    ) -> DataResult<Vec<U>> {
+    fn get_list(&self, value: &Dynamic) -> DataResult<Vec<Dynamic>> {
         let Dynamic::List(value) = value else {
-            return Err(DataError::new("expected List"));
+            return Err(DataError::new("todo"));
         };
         let mut vec = Vec::new();
         for idx in 0..value.len() {
-            let item = value.get(idx).unwrap();
-            vec.push(U::from_type(self, item)?);
+            vec.push(value.get(idx).unwrap().clone());
         }
         Ok(vec)
     }
 
-    fn get_object<U: super::ConvertWithCodecOps<Dynamic>>(
-        &self,
-        value: &Dynamic,
-    ) -> DataResult<BTreeMap<String, U>> {
+    fn get_object(&self, value: &Dynamic) -> DataResult<BTreeMap<String, Dynamic>> {
         let Dynamic::Object(value) = value else {
-            return Err(DataError::new("expected List"));
+            return Err(DataError::new("todo"));
         };
         let mut map = BTreeMap::new();
         for key in value.keys() {
-            let item = value.get(key).unwrap();
-            map.insert(key.clone(), U::from_type(self, item)?);
+            let value = value.get(key);
+            map.insert(key.clone(), value.unwrap().clone());
         }
         Ok(map)
+    }
+
+    fn create_unit(&self) -> Dynamic {
+        Dynamic::Unit
+    }
+
+    fn get_unit(&self, value: &Dynamic) -> DataResult<()> {
+        match value {
+            Dynamic::Unit => Ok(()),
+            _ => Err(DataError::new("expected Unit")),
+        }
     }
 }

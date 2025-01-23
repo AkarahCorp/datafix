@@ -1,5 +1,5 @@
-use crate::dynamic::Dynamic;
+use crate::serialization::ops::CodecOps;
 
 pub trait DataFixerRule {
-    fn fix_dyn(&self, value: &mut Dynamic);
+    fn fix<T, O: CodecOps<T>>(&self, ops: &O, value: &T) -> T;
 }

@@ -76,7 +76,10 @@ impl<P1, P1C: Codec<P1>, P2, P2C: Codec<P2>, Struct>
 
 #[cfg(test)]
 mod tests {
-    use crate::serialization::{Codec, DefaultCodec, builder::RecordCodecBuilder};
+    use crate::{
+        dynamic::Dynamic,
+        serialization::{Codec, DefaultCodec, builder::RecordCodecBuilder},
+    };
 
     #[derive(Debug, PartialEq)]
     struct Pos2d {
@@ -107,8 +110,8 @@ mod tests {
     #[test]
     pub fn simple_record() {
         let value = Pos2d { x: 10.0, y: 15.0 };
-        let encoded = Pos2d::codec().into_dyn(&value).unwrap();
-        let decoded = Pos2d::codec().from_dyn(&encoded).unwrap();
+        let encoded = Pos2d::codec().encode(&Dynamic::ops(), &value).unwrap();
+        let decoded = Pos2d::codec().decode(&Dynamic::ops(), &encoded).unwrap();
 
         assert_eq!(decoded, value);
     }
