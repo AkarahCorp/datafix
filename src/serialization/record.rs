@@ -6,12 +6,13 @@ use crate::result::{DataError, DataResult};
 
 use super::{Codec, ops::CodecOps};
 
-pub(crate) trait RecordFieldGetter<T, C: Codec<T>, Struct> {
-    fn struct_getter(&self) -> fn(&Struct) -> &T;
+pub trait RecordFieldGetter<T, C: Codec<T>, Struct> {
+    fn encode_into<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<(&str, U)>;
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T>;
+    fn field_name(&self) -> &str;
 }
 
-pub(crate) struct RecordField<T, C: Codec<T>, Struct> {
+pub struct RecordField<T, C: Codec<T>, Struct> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &T,
     pub(crate) codec: C,
@@ -30,8 +31,15 @@ impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct> for RecordField<T, 
         self.codec.decode(ops, field)
     }
 
-    fn struct_getter(&self) -> fn(&Struct) -> &T {
-        self.getter
+    fn field_name(&self) -> &str {
+        &self.field_name
+    }
+
+    fn encode_into<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<(&str, U)> {
+        Ok((
+            &self.field_name,
+            self.codec.encode(ops, (self.getter)(value))?,
+        ))
     }
 }
 
@@ -50,21 +58,23 @@ impl Codec<()> for UnitCodec {
 macro_rules! record_codec {
     (
         name: $struct_name:ident,
-        fields: { $($field:ident: $name:ident[$codec:ident, $field_type:ident]),* }
+        fields: { $($field:ident: $name:ident[$codec:ident; $field_type:ident]),* }
     ) => {
         pub struct $struct_name<$($name, $codec: Codec<$name>, $field_type: RecordFieldGetter<$name, $codec, Struct>),*, Struct> {
             $(pub(crate) $field: $field_type),*,
-            pub(crate) into_struct: OnceCell<fn($($name),*) -> Struct>
+            pub(crate) into_struct: OnceCell<fn($($name),*) -> Struct>,
+            pub(crate) _phantom: PhantomData<($($codec),*,)>
         }
 
         #[doc(hidden)]
-        impl<$($name, $codec: Codec<$name>, $field_type: RecordFieldGetter<$name, $codec, Struct>),*, Struct> Codec<Struct> for $struct_name<$($name, $codec),*, Struct> {
+        impl<$(
+            $name,
+            $codec: Codec<$name>,
+            $field_type: RecordFieldGetter<$name, $codec, Struct>
+        ),*, Struct> Codec<Struct> for $struct_name<$($name, $codec, $field_type),*, Struct> {
             fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
                 Ok(ops.create_object(&[
-                    $((
-                        &self.$field.field_name,
-                        self.$field.codec.encode(ops, (self.$field.struct_getter())(value))?,
-                    )),*
+                    $(self.$field.encode_into(ops, value)?,)*
                 ]))
             }
 
@@ -77,9 +87,9 @@ macro_rules! record_codec {
                     // };
                 )*
 
-                let slice = [$(&self.$field.field_name),*];
+                let slice = [$(&self.$field.field_name()),*];
                 for key in obj.keys() {
-                    if !slice.contains(&key) {
+                    if !slice.contains(&&key.as_str()) {
                         return Err(DataError::new(&alloc::format!("Unsupported key \"{}\" in object", key)))
                     }
                 }
@@ -96,231 +106,14 @@ macro_rules! record_codec {
 record_codec! {
     name: RecordCodec1,
     fields: {
-        codec1: P1[P1C]
+        codec1: P1[P1C; P1F]
     }
 }
 
 record_codec! {
     name: RecordCodec2,
     fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec3,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec4,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec5,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec6,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec7,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec8,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec9,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec10,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec11,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec12,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C],
-        codec12: P12[P12C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec13,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C],
-        codec12: P12[P12C],
-        codec13: P13[P13C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec14,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C],
-        codec12: P12[P12C],
-        codec13: P13[P13C],
-        codec14: P14[P14C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec15,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C],
-        codec12: P12[P12C],
-        codec13: P13[P13C],
-        codec14: P14[P14C],
-        codec15: P15[P15C]
-    }
-}
-
-record_codec! {
-    name: RecordCodec16,
-    fields: {
-        codec1: P1[P1C],
-        codec2: P2[P2C],
-        codec3: P3[P3C],
-        codec4: P4[P4C],
-        codec5: P5[P5C],
-        codec6: P6[P6C],
-        codec7: P7[P7C],
-        codec8: P8[P8C],
-        codec9: P9[P9C],
-        codec10: P10[P10C],
-        codec11: P11[P11C],
-        codec12: P12[P12C],
-        codec13: P13[P13C],
-        codec14: P14[P14C],
-        codec15: P15[P15C],
-        codec16: P16[P16C]
+        codec1: P1[P1C; P1F],
+        codec2: P2[P2C; P2F]
     }
 }
