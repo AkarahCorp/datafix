@@ -118,75 +118,177 @@ record_codec! {
     }
 }
 
-// pub struct RecordCodec1<P1, P1C, Struct>
-// where
-//     P1C: Codec<P1>,
-// {
-//     pub(crate) codec1: RecordField<P1, P1C, Struct>,
-//     pub(crate) into_struct: OnceCell<fn(P1) -> Struct>,
-// }
+record_codec! {
+    name: RecordCodec7,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C]
+    }
+}
 
-// impl<P1, P1C, Struct> Codec<Struct> for RecordCodec1<P1, P1C, Struct>
-// where
-//     P1C: Codec<P1>,
-// {
-//     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
-//         Ok(ops.create_object(&[(
-//             &self.codec1.field_name,
-//             self.codec1.codec.encode(ops, (self.codec1.getter)(value))?,
-//         )]))
-//     }
+record_codec! {
+    name: RecordCodec8,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C]
+    }
+}
 
-//     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
-//         let obj = ops.get_object(value)?;
-//         let Some(p1) = obj.get(&self.codec1.field_name) else {
-//             return Err(DataError::new(""));
-//         };
-//         Ok((self.into_struct.get().unwrap())(
-//             self.codec1.codec.decode(ops, p1)?,
-//         ))
-//     }
-// }
+record_codec! {
+    name: RecordCodec9,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C]
+    }
+}
 
-// pub struct RecordCodec2<P1, P1C, P2, P2C, Struct>
-// where
-//     P1C: Codec<P1>,
-//     P2C: Codec<P2>,
-// {
-//     pub(crate) codec1: RecordField<P1, P1C, Struct>,
-//     pub(crate) codec2: RecordField<P2, P2C, Struct>,
-//     pub(crate) into_struct: OnceCell<fn(P1, P2) -> Struct>,
-// }
+record_codec! {
+    name: RecordCodec10,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C]
+    }
+}
 
-// impl<P1, P1C, P2, P2C, Struct> Codec<Struct> for RecordCodec2<P1, P1C, P2, P2C, Struct>
-// where
-//     P1C: Codec<P1>,
-//     P2C: Codec<P2>,
-// {
-//     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
-//         Ok(ops.create_object(&[
-//             (
-//                 &self.codec1.field_name,
-//                 self.codec1.codec.encode(ops, (self.codec1.getter)(value))?,
-//             ),
-//             (
-//                 &self.codec2.field_name,
-//                 self.codec2.codec.encode(ops, (self.codec2.getter)(value))?,
-//             ),
-//         ]))
-//     }
+record_codec! {
+    name: RecordCodec11,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C]
+    }
+}
 
-//     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
-//         let obj = ops.get_object(value)?;
-//         let Some(p1) = obj.get(&self.codec1.field_name) else {
-//             return Err(DataError::new(""));
-//         };
-//         let Some(p2) = obj.get(&self.codec2.field_name) else {
-//             return Err(DataError::new(""));
-//         };
-//         Ok((self.into_struct.get().unwrap())(
-//             self.codec1.codec.decode(ops, p1)?,
-//             self.codec2.codec.decode(ops, p2)?,
-//         ))
-//     }
-// }
+record_codec! {
+    name: RecordCodec12,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C],
+        codec12: P12[P12C]
+    }
+}
+
+record_codec! {
+    name: RecordCodec13,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C],
+        codec12: P12[P12C],
+        codec13: P13[P13C]
+    }
+}
+
+record_codec! {
+    name: RecordCodec14,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C],
+        codec12: P12[P12C],
+        codec13: P13[P13C],
+        codec14: P14[P14C]
+    }
+}
+
+record_codec! {
+    name: RecordCodec15,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C],
+        codec12: P12[P12C],
+        codec13: P13[P13C],
+        codec14: P14[P14C],
+        codec15: P15[P15C]
+    }
+}
+
+record_codec! {
+    name: RecordCodec16,
+    fields: {
+        codec1: P1[P1C],
+        codec2: P2[P2C],
+        codec3: P3[P3C],
+        codec4: P4[P4C],
+        codec5: P5[P5C],
+        codec6: P6[P6C],
+        codec7: P7[P7C],
+        codec8: P8[P8C],
+        codec9: P9[P9C],
+        codec10: P10[P10C],
+        codec11: P11[P11C],
+        codec12: P12[P12C],
+        codec13: P13[P13C],
+        codec14: P14[P14C],
+        codec15: P15[P15C],
+        codec16: P16[P16C]
+    }
+}
