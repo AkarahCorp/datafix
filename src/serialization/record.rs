@@ -6,11 +6,33 @@ use crate::result::{DataError, DataResult};
 
 use super::{Codec, ops::CodecOps};
 
-pub(crate) struct RecordField<T, C: Codec<T>, S> {
+pub(crate) trait RecordFieldGetter<T, C: Codec<T>, Struct> {
+    fn struct_getter(&self) -> fn(&Struct) -> &T;
+    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T>;
+}
+
+pub(crate) struct RecordField<T, C: Codec<T>, Struct> {
     pub(crate) field_name: String,
-    pub(crate) getter: fn(&S) -> &T,
+    pub(crate) getter: fn(&Struct) -> &T,
     pub(crate) codec: C,
     pub(crate) _phantom: PhantomData<fn() -> T>,
+}
+
+impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct> for RecordField<T, C, Struct> {
+    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
+        let obj = ops.get_object(&value)?;
+        let field = obj.get(&self.field_name).ok_or_else(|| {
+            DataError::new(&alloc::format!(
+                "Expected key \"{}\" in object",
+                self.field_name
+            ))
+        })?;
+        self.codec.decode(ops, field)
+    }
+
+    fn struct_getter(&self) -> fn(&Struct) -> &T {
+        self.getter
+    }
 }
 
 pub struct UnitCodec {}
@@ -41,7 +63,7 @@ macro_rules! record_codec {
                 Ok(ops.create_object(&[
                     $((
                         &self.$field.field_name,
-                        self.$field.codec.encode(ops, (self.$field.getter)(value))?,
+                        self.$field.codec.encode(ops, (self.$field.struct_getter())(value))?,
                     )),*
                 ]))
             }
@@ -49,9 +71,10 @@ macro_rules! record_codec {
             fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
                 let obj = ops.get_object(value)?;
                 $(
-                    let Some($field) = obj.get(&self.$field.field_name) else {
-                        return Err(DataError::new(&alloc::format!("No key \"{}\" in object", self.$field.field_name)));
-                    };
+                    let $field: $name = self.$field.get_field(ops, &value)?;
+                    // let Some($field) = obj.get(&self.$field.field_name) else {
+                    //     return Err(DataError::new(&alloc::format!("No) key \"{}\" in object", self.$field.field_name)));
+                    // };
                 )*
 
                 let slice = [$(&self.$field.field_name),*];
@@ -62,7 +85,8 @@ macro_rules! record_codec {
                 }
 
                 Ok((self.into_struct.get().unwrap())(
-                    $((self.$field.codec.decode(ops, $field))?),*
+                    // $((self.$field.codec.decode(ops, $field))?),*
+                    $($field),*
                 ))
             }
         }
