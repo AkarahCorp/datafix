@@ -35,6 +35,7 @@ macro_rules! record_codec {
             pub(crate) into_struct: OnceCell<fn($($name),*) -> Struct>
         }
 
+        #[doc(hidden)]
         impl<$($name, $codec: Codec<$name>),*, Struct> Codec<Struct> for $struct_name<$($name, $codec),*, Struct> {
             fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
                 Ok(ops.create_object(&[

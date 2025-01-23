@@ -12,18 +12,20 @@ use ops::CodecOps;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
 /// [`Codec`]s are lazy, they don't do anything by themselves.
-/// You need to call [`Codec::into_dyn`], [`Codec::from_dyn`] to change between `T` and [`Dynamic`].
+/// You need to call [`Codec::encode`], [`Codec::decode`] to change between `T` and [`Dynamic`].
 /// For more complex use cases, you can call helper methods such as [`Codec::list_of`] and [`Codec::xmap`].
 ///
 /// For implementors, try to keep implementations of this trait pure, immutable, and deterministic.
+///
+/// [`Dynamic`]: [`dynamic::Dynamic`]
 pub trait Codec<T>
 where
     Self: Sized,
 {
-    /// Transform a value of type `T` into a [`Dynamic`], optionally returning an error.
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U>;
-    /// Transforms a [`Dynamic`] value into a type `T`, optionally returning an error.
+    /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T>;
 
