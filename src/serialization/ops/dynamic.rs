@@ -51,27 +51,27 @@ impl CodecOps<Dynamic> for DynamicOps {
     fn get_number(&self, value: &Dynamic) -> DataResult<f64> {
         match value {
             Dynamic::Number(v) => Ok(*v),
-            _ => Err(DataError::new("expected f64")),
+            _ => Err(DataError::new("Expected f64")),
         }
     }
 
     fn get_string(&self, value: &Dynamic) -> DataResult<String> {
         match value {
             Dynamic::String(v) => Ok(v.clone()),
-            _ => Err(DataError::new("expected String")),
+            _ => Err(DataError::new("Expected String")),
         }
     }
 
     fn get_boolean(&self, value: &Dynamic) -> DataResult<bool> {
         match value {
             Dynamic::Boolean(v) => Ok(v.clone()),
-            _ => Err(DataError::new("expected bool")),
+            _ => Err(DataError::new("Expected bool")),
         }
     }
 
     fn get_list(&self, value: &Dynamic) -> DataResult<Vec<Dynamic>> {
         let Dynamic::List(value) = value else {
-            return Err(DataError::new("todo"));
+            return Err(DataError::new("Expected a valid list"));
         };
         let mut vec = Vec::new();
         for idx in 0..value.len() {
@@ -82,7 +82,7 @@ impl CodecOps<Dynamic> for DynamicOps {
 
     fn get_object(&self, value: &Dynamic) -> DataResult<BTreeMap<String, Dynamic>> {
         let Dynamic::Object(value) = value else {
-            return Err(DataError::new("todo"));
+            return Err(DataError::new("Expected a valid object"));
         };
         let mut map = BTreeMap::new();
         for key in value.keys() {
@@ -99,7 +99,7 @@ impl CodecOps<Dynamic> for DynamicOps {
     fn get_unit(&self, value: &Dynamic) -> DataResult<()> {
         match value {
             Dynamic::Unit => Ok(()),
-            _ => Err(DataError::new("expected Unit")),
+            _ => Err(DataError::new("Expected Unit")),
         }
     }
 }

@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use core::{marker::PhantomData, ops::RangeBounds};
+use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use crate::{
     fixers::DataFixerRule,
@@ -93,22 +93,30 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
 
     fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<(L, R)> {
         let obj = ops.get_object(value)?;
-        let left = obj.get("left").ok_or_else(|| DataError::new(""))?;
-        let right = obj.get("right").ok_or_else(|| DataError::new(""))?;
+        let left = obj
+            .get("left")
+            .ok_or_else(|| DataError::new("Expected key \"left\" in pair"))?;
+        let right = obj
+            .get("right")
+            .ok_or_else(|| DataError::new("Expected key \"right\" in pair"))?;
         Ok((self.left.decode(ops, left)?, self.right.decode(ops, right)?))
     }
 }
 
-pub struct BoundedCodec<T: PartialOrd, C: Codec<T>, R: RangeBounds<T>> {
+pub struct BoundedCodec<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> {
     pub(crate) codec: C,
     pub(crate) range: R,
     pub(crate) _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T: PartialOrd, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T, C, R> {
+impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T, C, R> {
     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
         if !self.range.contains(value) {
-            Err(DataError::new("range must be in"))
+            Err(DataError::new(&alloc::format!(
+                "Value must be in bounds of {:?} to {:?}",
+                self.range.start_bound(),
+                self.range.end_bound()
+            )))
         } else {
             self.codec.encode(ops, value)
         }
@@ -119,7 +127,11 @@ impl<T: PartialOrd, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T,
         if self.range.contains(&decoded) {
             Ok(decoded)
         } else {
-            Err(DataError::new("range must be in"))
+            Err(DataError::new(&alloc::format!(
+                "Value must be in bounds of {:?} to {:?}",
+                self.range.start_bound(),
+                self.range.end_bound()
+            )))
         }
     }
 }

@@ -7,7 +7,7 @@ pub mod record;
 use crate::{fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
 use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
-use core::{marker::PhantomData, ops::RangeBounds};
+use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use ops::CodecOps;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -65,7 +65,7 @@ where
 
     fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T>
     where
-        T: PartialOrd,
+        T: PartialOrd + Debug,
     {
         BoundedCodec {
             codec: self,

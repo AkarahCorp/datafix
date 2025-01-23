@@ -49,9 +49,16 @@ macro_rules! record_codec {
                 let obj = ops.get_object(value)?;
                 $(
                     let Some($field) = obj.get(&self.$field.field_name) else {
-                        return Err(DataError::new(""));
+                        return Err(DataError::new(&alloc::format!("No key \"{}\" in object", self.$field.field_name)));
                     };
                 )*
+
+                let slice = [$(&self.$field.field_name),*];
+                for key in obj.keys() {
+                    if !slice.contains(&key) {
+                        return Err(DataError::new(&alloc::format!("Unsupported key \"{}\" in object", key)))
+                    }
+                }
 
                 Ok((self.into_struct.get().unwrap())(
                     $((self.$field.codec.decode(ops, $field))?),*
