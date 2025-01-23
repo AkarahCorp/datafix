@@ -6,8 +6,8 @@ pub mod record;
 
 use crate::{fixers::DataFixerRule, result::DataResult};
 use alloc::vec::Vec;
-use combinators::{DataFixCodec, ListCodec, PairCodec, XMapCodec};
-use core::marker::PhantomData;
+use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
+use core::{marker::PhantomData, ops::RangeBounds};
 use ops::CodecOps;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -62,6 +62,17 @@ where
             _phantom: PhantomData,
         }
     }
+
+    fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T>
+    where
+        T: PartialOrd,
+    {
+        BoundedCodec {
+            codec: self,
+            range,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 pub trait DefaultCodec
@@ -88,6 +99,28 @@ mod tests {
         let encoded = f64::codec().encode(&Dynamic::ops(), &value).unwrap();
         let decoded = f64::codec().decode(&Dynamic::ops(), &encoded).unwrap();
         assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn ints_codec() {
+        let value = 10;
+        let encoded = i32::codec().encode(&Dynamic::ops(), &value).unwrap();
+        let decoded = i32::codec().decode(&Dynamic::ops(), &encoded).unwrap();
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn bounded_codec() {
+        let value = 10;
+        let encoded = i32::codec()
+            .bounded(-10..15)
+            .encode(&Dynamic::ops(), &value);
+        assert!(encoded.is_ok());
+
+        let encoded = i32::codec()
+            .bounded(15..300)
+            .encode(&Dynamic::ops(), &value);
+        assert!(encoded.is_err());
     }
 
     #[test]

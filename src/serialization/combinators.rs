@@ -1,5 +1,5 @@
 use alloc::vec::Vec;
-use core::marker::PhantomData;
+use core::{marker::PhantomData, ops::RangeBounds};
 
 use crate::{
     fixers::DataFixerRule,
@@ -96,5 +96,30 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
         let left = obj.get("left").ok_or_else(|| DataError::new(""))?;
         let right = obj.get("right").ok_or_else(|| DataError::new(""))?;
         Ok((self.left.decode(ops, left)?, self.right.decode(ops, right)?))
+    }
+}
+
+pub struct BoundedCodec<T: PartialOrd, C: Codec<T>, R: RangeBounds<T>> {
+    pub(crate) codec: C,
+    pub(crate) range: R,
+    pub(crate) _phantom: PhantomData<fn() -> T>,
+}
+
+impl<T: PartialOrd, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T, C, R> {
+    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
+        if !self.range.contains(value) {
+            Err(DataError::new("range must be in"))
+        } else {
+            self.codec.encode(ops, value)
+        }
+    }
+
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
+        let decoded = self.codec.decode(ops, value)?;
+        if self.range.contains(&decoded) {
+            Ok(decoded)
+        } else {
+            Err(DataError::new("range must be in"))
+        }
     }
 }
