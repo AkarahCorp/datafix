@@ -121,58 +121,54 @@ impl_record_codec_builder! {
     next: codec2: RecordCodec2 as P2[P2C; P2F; P2R]
 }
 
-impl_record_codec_builder_last! {
+impl_record_codec_builder! {
     type: RecordCodec2,
-    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R] }
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R] },
+    next: codec3: RecordCodec3 as P3[P3C; P3F; P3R]
 }
-// impl_record_codec_builder! {
-//     type: RecordCodec2,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R] },
-//     next: codec3: RecordCodec3 as P3[P3C; P3F; P3R]
-// }
-// impl_record_codec_builder! {
-//     type: RecordCodec3,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R] },
-//     next: codec4: RecordCodec4 as P4[P4C; P4F; P4R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec3,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R] },
+    next: codec4: RecordCodec4 as P4[P4C; P4F; P4R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec4,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R] },
-//     next: codec5: RecordCodec5 as P5[P5C; P5F; P5R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec4,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R] },
+    next: codec5: RecordCodec5 as P5[P5C; P5F; P5R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec5,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R] },
-//     next: codec6: RecordCodec6 as P6[P6C; P6F; P6R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec5,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R] },
+    next: codec6: RecordCodec6 as P6[P6C; P6F; P6R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec6,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R] },
-//     next: codec7: RecordCodec7 as P7[P7C; P7F; P7R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec6,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R] },
+    next: codec7: RecordCodec7 as P7[P7C; P7F; P7R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec7,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R] },
-//     next: codec8: RecordCodec8 as P8[P8C; P8F; P8R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec7,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R] },
+    next: codec8: RecordCodec8 as P8[P8C; P8F; P8R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec8,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R] },
-//     next: codec9: RecordCodec9 as P9[P9C; P9F; P9R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec8,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R] },
+    next: codec9: RecordCodec9 as P9[P9C; P9F; P9R]
+}
 
-// impl_record_codec_builder! {
-//     type: RecordCodec9,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R] },
-//     next: codec10: RecordCodec10 as P10[P10C; P10F; P10R]
-// }
+impl_record_codec_builder! {
+    type: RecordCodec9,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R] },
+    next: codec10: RecordCodec10 as P10[P10C; P10F; P10R]
+}
 
-// impl_record_codec_builder_last! {
-//     type: RecordCodec10,
-//     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R], codec10: P10[P10C; P10F; P10R] }
-// }
+impl_record_codec_builder_last! {
+    type: RecordCodec10,
+    fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R], codec10: P10[P10C; P10F; P10R] }
+}
