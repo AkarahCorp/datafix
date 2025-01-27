@@ -4,7 +4,7 @@ mod ops;
 mod primitives;
 mod record;
 
-use crate::{fixers::DataFixerRule, result::DataResult};
+use crate::{fixers::Fixer, result::DataResult};
 use alloc::{string::String, vec::Vec};
 use combinators::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
@@ -86,7 +86,7 @@ where
         }
     }
 
-    fn fixer<R: DataFixerRule>(self, rule: R) -> impl Codec<T> {
+    fn fixer<R: Fixer>(self, rule: R) -> impl Codec<T> {
         DataFixCodec {
             inner: self,
             rule,

@@ -2,7 +2,7 @@ use alloc::{string::ToString, vec::Vec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use crate::{
-    fixers::DataFixerRule,
+    fixers::Fixer,
     result::{DataError, DataResult},
 };
 
@@ -59,13 +59,13 @@ where
     }
 }
 
-pub(crate) struct DataFixCodec<T, C: Codec<T>, R: DataFixerRule> {
+pub(crate) struct DataFixCodec<T, C: Codec<T>, R: Fixer> {
     pub(crate) inner: C,
     pub(crate) rule: R,
     pub(crate) _phantom: PhantomData<T>,
 }
 
-impl<T, C: Codec<T>, R: DataFixerRule> Codec<T> for DataFixCodec<T, C, R> {
+impl<T, C: Codec<T>, R: Fixer> Codec<T> for DataFixCodec<T, C, R> {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
         let encoded = self.inner.encode(ops, value)?;
         let encoded = self.rule.fix(ops, &encoded);
