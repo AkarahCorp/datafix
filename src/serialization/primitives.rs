@@ -13,7 +13,7 @@ impl Codec<f64> for F64Codec {
         Ok(ops.create_number(value))
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<f64> {
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<f64> {
         ops.get_number(value)
     }
 }
@@ -31,7 +31,7 @@ impl Codec<String> for StringCodec {
         Ok(ops.create_string(value))
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<String> {
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<String> {
         ops.get_string(value)
     }
 }
@@ -49,7 +49,7 @@ impl Codec<bool> for BoolCodec {
         Ok(ops.create_boolean(value))
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<bool> {
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<bool> {
         ops.get_boolean(value)
     }
 }
@@ -103,7 +103,7 @@ impl<N: F64Convertable> Codec<N> for NumberCodec<N> {
         Ok(ops.create_number(&value.into_f64()))
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<N> {
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<N> {
         Ok(N::from_f64(ops.get_number(value)?))
     }
 }

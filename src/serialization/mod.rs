@@ -30,7 +30,7 @@ where
     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U>;
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T>;
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T>;
 
     fn field_of<Struct>(
         self,

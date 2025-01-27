@@ -2,6 +2,7 @@ use alloc::{string::ToString, vec::Vec};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use crate::{
+    dynamic::Dynamic,
     fixers::Fixer,
     result::{DataError, DataResult},
 };
@@ -19,14 +20,14 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
         for element in value {
             list.push(self.inner.encode(ops, element)?);
         }
-        Ok(ops.create_list(list.into_iter()))
+        Ok(ops.create_list(&list.into_iter()))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Vec<T>> {
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
-        for item in list {
-            vec.push(self.inner.decode(ops, &item)?);
+        for mut item in list {
+            vec.push(self.inner.decode(ops, &mut item)?);
         }
         Ok(vec)
     }
@@ -54,7 +55,7 @@ where
         self.inner.encode(ops, &(self.g)(value))
     }
 
-    fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &OpsType) -> DataResult<U> {
+    fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &mut OpsType) -> DataResult<U> {
         Ok((self.f)(&self.inner.decode(ops, value)?))
     }
 }
@@ -67,14 +68,16 @@ pub(crate) struct DataFixCodec<T, C: Codec<T>, R: Fixer> {
 
 impl<T, C: Codec<T>, R: Fixer> Codec<T> for DataFixCodec<T, C, R> {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
-        let encoded = self.inner.encode(ops, value)?;
-        let encoded = self.rule.fix(ops, &encoded);
+        let mut encoded = self.inner.encode(ops, value)?;
+        let dynamic = Dynamic::new(ops.clone(), &mut encoded);
+        self.rule.fix(dynamic);
         Ok(encoded)
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
-        let value = self.rule.fix(ops, &value);
-        self.inner.decode(ops, &value)
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
+        let dynamic = Dynamic::new(ops.clone(), value);
+        self.rule.fix(dynamic);
+        self.inner.decode(ops, value)
     }
 }
 
@@ -86,7 +89,7 @@ pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
 impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &(L, R)) -> DataResult<U> {
         Ok(ops.create_object(
-            [
+            &[
                 ("left".to_string(), self.left.encode(ops, &value.0)?),
                 ("right".to_string(), self.right.encode(ops, &value.1)?),
             ]
@@ -94,15 +97,17 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
         ))
     }
 
-    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<(L, R)> {
-        let obj = ops.get_object(value)?;
-        let left = obj
-            .get("left")
+    fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<(L, R)> {
+        let mut obj = ops.get_object(value)?;
+        let mut left = obj
+            .get_mut("left")
             .ok_or_else(|| DataError::new("Expected key \"left\" in pair"))?;
-        let right = obj
-            .get("right")
+        let p1 = self.left.decode(ops, &mut left)?;
+        let mut right = obj
+            .get_mut("right")
             .ok_or_else(|| DataError::new("Expected key \"right\" in pair"))?;
-        Ok((self.left.decode(ops, left)?, self.right.decode(ops, right)?))
+        let p2 = self.right.decode(ops, &mut right)?;
+        Ok((p1, p2))
     }
 }
 
@@ -125,7 +130,7 @@ impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for Bounded
         }
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
         let decoded = self.codec.decode(ops, value)?;
         if self.range.contains(&decoded) {
             Ok(decoded)

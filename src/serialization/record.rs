@@ -46,8 +46,8 @@ impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, Option<T>>
     }
 
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Option<T>> {
-        let obj = ops.get_object(&value)?;
-        match obj.get(&self.field_name) {
+        let mut obj = ops.get_object(&value)?;
+        match obj.get_mut(&self.field_name) {
             Some(field) => Ok(Some(self.codec.decode(ops, field)?)),
             None => Ok(None),
         }
@@ -67,8 +67,8 @@ pub struct RecordField<T, C: Codec<T>, Struct> {
 
 impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
-        let obj = ops.get_object(&value)?;
-        let field = obj.get(&self.field_name).ok_or_else(|| {
+        let mut obj = ops.get_object(&value)?;
+        let field = obj.get_mut(&self.field_name).ok_or_else(|| {
             DataError::new(&alloc::format!(
                 "Expected key \"{}\" in object",
                 self.field_name
@@ -102,7 +102,7 @@ impl Codec<()> for UnitCodec {
         Ok(ops.create_unit())
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<()> {
+    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<()> {
         ops.get_unit(value)
     }
 }
@@ -139,7 +139,7 @@ macro_rules! record_codec {
                 ])
             }
 
-            fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Struct> {
+            fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Struct> {
                 let obj = ops.get_object(value)?;
                 $(
                     let $field: $field_return_type = self.$field.get_field(ops, &value)?;
