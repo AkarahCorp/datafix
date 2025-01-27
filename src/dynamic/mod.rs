@@ -5,6 +5,8 @@ mod list;
 pub use list::DynamicList;
 mod object;
 pub use object::DynamicObject;
+mod ops;
+pub use ops::DynamicOps;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Dynamic {

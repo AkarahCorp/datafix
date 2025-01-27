@@ -7,9 +7,8 @@ use alloc::{
 use crate::{
     dynamic::{Dynamic, DynamicList, DynamicObject},
     result::{DataError, DataResult},
+    serialization::CodecOps,
 };
-
-use super::CodecOps;
 
 pub struct DynamicOps;
 
