@@ -1,4 +1,4 @@
-use alloc::{collections::btree_map::BTreeMap, string::String, vec::Vec};
+use alloc::string::String;
 
 use crate::result::DataResult;
 
@@ -8,6 +8,9 @@ use crate::result::DataResult;
 /// This trait is very low-level. This is intended as an interface for developers making their own datatypes that
 /// can interact with [`Codec`]s. For a developer simply wishing to be able to serialize & deserialize data,
 /// the [`Codec`] trait is recommended instead.
+///
+/// Since fixing data is a big part of the [`Codec`] API, [`Codec::decode`] accepts a mutable reference. This is because when trying to update the value,
+/// it will try to optimize the updating and apply it to the top-level instead of creating new copies everywhere.
 ///
 /// [`Codec`]: [`super::Codec`]
 pub trait CodecOps<T>: Clone {
@@ -21,8 +24,8 @@ pub trait CodecOps<T>: Clone {
     fn get_number(&self, value: &T) -> DataResult<f64>;
     fn get_string(&self, value: &T) -> DataResult<String>;
     fn get_boolean(&self, value: &T) -> DataResult<bool>;
-    fn get_list(&self, value: &T) -> DataResult<Vec<T>>;
-    fn get_object(&self, value: &T) -> DataResult<BTreeMap<String, T>>;
+    fn get_list(&self, value: &T) -> DataResult<impl ListView<T>>;
+    fn get_object(&self, value: &T) -> DataResult<impl ObjectView<T>>;
     fn get_unit(&self, value: &T) -> DataResult<()>;
 
     fn get_object_field(&self, value: &T, field: &str, value: T) -> DataResult<T>;
@@ -39,4 +42,22 @@ pub trait CodecOps<T>: Clone {
 
         Ok(self.create_object(&iter1))
     }
+}
+
+pub trait ObjectView<T> {
+    fn get(&mut self, name: &str) -> DataResult<&mut T>;
+    fn set(&mut self, name: &str, value: T);
+    fn keys(&self) -> &[&str];
+
+    fn update<F: FnOnce(&mut T)>(&mut self, name: &str, f: F) {
+        if let Ok(v) = self.get(name) {
+            f(v)
+        }
+    }
+}
+
+pub trait ListView<T> {
+    fn append(&mut self, value: T);
+    fn get(&mut self, index: usize) -> DataResult<&mut T>;
+    fn into_iter(self) -> impl Iterator<Item = T>;
 }

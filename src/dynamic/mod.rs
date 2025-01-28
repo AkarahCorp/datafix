@@ -1,6 +1,9 @@
-use alloc::{collections::btree_map::BTreeMap, string::String, vec::Vec};
+use alloc::string::String;
 
-use crate::{result::DataResult, serialization::CodecOps};
+use crate::{
+    result::DataResult,
+    serialization::{CodecOps, ListView, ObjectView},
+};
 
 pub struct Dynamic<'a, T, O: CodecOps<T>> {
     ops: O,
@@ -44,11 +47,11 @@ impl<'a, T, O: CodecOps<T>> Dynamic<'a, T, O> {
         self.ops.get_unit(&self.value)
     }
 
-    pub fn as_object(&self) -> DataResult<BTreeMap<String, T>> {
+    pub fn as_object(&self) -> DataResult<impl ObjectView<T>> {
         self.ops.get_object(&self.value)
     }
 
-    pub fn as_list(&self) -> DataResult<Vec<T>> {
+    pub fn as_list(&self) -> DataResult<impl ListView<T>> {
         self.ops.get_list(&self.value)
     }
 }

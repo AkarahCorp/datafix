@@ -4,7 +4,10 @@ use alloc::string::String;
 
 use crate::result::{DataError, DataResult};
 
-use super::{Codec, ops::CodecOps};
+use super::{
+    Codec,
+    ops::{CodecOps, ObjectView},
+};
 
 pub trait RecordFieldGetter<T, C: Codec<T>, Struct, Rt> {
     fn encode_into<U, O: CodecOps<U>>(
@@ -47,9 +50,9 @@ impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, Option<T>>
 
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Option<T>> {
         let mut obj = ops.get_object(&value)?;
-        match obj.get_mut(&self.field_name) {
-            Some(field) => Ok(Some(self.codec.decode(ops, field)?)),
-            None => Ok(None),
+        match obj.get(&self.field_name) {
+            Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
+            Err(e) => Err(e),
         }
     }
 
@@ -68,12 +71,7 @@ pub struct RecordField<T, C: Codec<T>, Struct> {
 impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
         let mut obj = ops.get_object(&value)?;
-        let field = obj.get_mut(&self.field_name).ok_or_else(|| {
-            DataError::new(&alloc::format!(
-                "Expected key \"{}\" in object",
-                self.field_name
-            ))
-        })?;
+        let field = obj.get(&self.field_name)?;
         self.codec.decode(ops, field)
     }
 
@@ -150,7 +148,7 @@ macro_rules! record_codec {
 
                 let slice = [$(&self.$field.field_name()),*];
                 for key in obj.keys() {
-                    if !slice.contains(&&key.as_str()) {
+                    if !slice.contains(&&key) {
                         return Err(DataError::new(&alloc::format!("Unsupported key \"{}\" in object", key)))
                     }
                 }

@@ -11,7 +11,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use record::{OptionalField, RecordField};
 
 pub use builder::RecordCodecBuilder;
-pub use ops::CodecOps;
+pub use ops::*;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
 /// [`Codec`]s are lazy, they don't do anything by themselves.

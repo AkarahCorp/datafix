@@ -7,7 +7,10 @@ use crate::{
     result::{DataError, DataResult},
 };
 
-use super::{Codec, ops::CodecOps};
+use super::{
+    Codec, ListView,
+    ops::{CodecOps, ObjectView},
+};
 
 pub(crate) struct ListCodec<T, C: Codec<T>> {
     pub(crate) inner: C,
@@ -26,7 +29,7 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
-        for mut item in list {
+        for mut item in list.into_iter() {
             vec.push(self.inner.decode(ops, &mut item)?);
         }
         Ok(vec)
@@ -99,13 +102,9 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
 
     fn decode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<(L, R)> {
         let mut obj = ops.get_object(value)?;
-        let mut left = obj
-            .get_mut("left")
-            .ok_or_else(|| DataError::new("Expected key \"left\" in pair"))?;
+        let mut left = obj.get("left")?;
         let p1 = self.left.decode(ops, &mut left)?;
-        let mut right = obj
-            .get_mut("right")
-            .ok_or_else(|| DataError::new("Expected key \"right\" in pair"))?;
+        let mut right = obj.get("right")?;
         let p2 = self.right.decode(ops, &mut right)?;
         Ok((p1, p2))
     }
