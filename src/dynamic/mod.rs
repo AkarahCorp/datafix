@@ -47,11 +47,11 @@ impl<'a, T, O: CodecOps<T>> Dynamic<'a, T, O> {
         self.ops.get_unit(&self.value)
     }
 
-    pub fn as_object(&self) -> DataResult<impl ObjectView<T>> {
-        self.ops.get_object(&self.value)
+    pub fn as_object(&mut self) -> DataResult<impl ObjectView<T>> {
+        self.ops.get_object(self.value)
     }
 
-    pub fn as_list(&self) -> DataResult<impl ListView<T>> {
-        self.ops.get_list(&self.value)
+    pub fn as_list(&mut self) -> DataResult<impl ListView<T>> {
+        self.ops.get_list(self.value)
     }
 }

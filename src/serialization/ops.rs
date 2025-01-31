@@ -17,19 +17,16 @@ pub trait CodecOps<T>: Clone {
     fn create_number(&self, value: &f64) -> T;
     fn create_string(&self, value: &str) -> T;
     fn create_boolean(&self, value: &bool) -> T;
-    fn create_list(&self, value: &impl Iterator<Item = T>) -> T;
-    fn create_object(&self, pairs: &impl Iterator<Item = (String, T)>) -> T;
+    fn create_list(&self, value: impl IntoIterator<Item = T>) -> T;
+    fn create_object(&self, pairs: impl IntoIterator<Item = (String, T)>) -> T;
     fn create_unit(&self) -> T;
 
     fn get_number(&self, value: &T) -> DataResult<f64>;
     fn get_string(&self, value: &T) -> DataResult<String>;
     fn get_boolean(&self, value: &T) -> DataResult<bool>;
-    fn get_list(&self, value: &T) -> DataResult<impl ListView<T>>;
-    fn get_object(&self, value: &T) -> DataResult<impl ObjectView<T>>;
+    fn get_list(&self, value: &mut T) -> DataResult<impl ListView<T>>;
+    fn get_object(&self, value: &mut T) -> DataResult<impl ObjectView<T>>;
     fn get_unit(&self, value: &T) -> DataResult<()>;
-
-    fn get_object_field(&self, value: &T, field: &str, value: T) -> DataResult<T>;
-    fn set_object_field(&self, value: &T, field: &str) -> DataResult<()>;
 
     // This purely exists for Optional Fields. The `Option` represents if a field is present,
     // the `DataResult` represents the actual field data.
@@ -40,7 +37,7 @@ pub trait CodecOps<T>: Clone {
     ) -> DataResult<T> {
         let iter1 = pairs.into_iter().filter_map(|x| x).filter_map(|x| x.ok());
 
-        Ok(self.create_object(&iter1))
+        Ok(self.create_object(iter1))
     }
 }
 

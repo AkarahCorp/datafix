@@ -23,7 +23,7 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
         for element in value {
             list.push(self.inner.encode(ops, element)?);
         }
-        Ok(ops.create_list(&list.into_iter()))
+        Ok(ops.create_list(list.into_iter()))
     }
 
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
@@ -92,7 +92,7 @@ pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
 impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
     fn encode<U, O: super::ops::CodecOps<U>>(&self, ops: &O, value: &(L, R)) -> DataResult<U> {
         Ok(ops.create_object(
-            &[
+            [
                 ("left".to_string(), self.left.encode(ops, &value.0)?),
                 ("right".to_string(), self.right.encode(ops, &value.1)?),
             ]

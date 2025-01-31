@@ -41,6 +41,7 @@
 
 extern crate alloc;
 
+pub mod builtins;
 pub mod dynamic;
 pub mod fixers;
 pub mod result;

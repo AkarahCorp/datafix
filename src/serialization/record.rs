@@ -15,7 +15,7 @@ pub trait RecordFieldGetter<T, C: Codec<T>, Struct, Rt> {
         ops: &O,
         value: &Struct,
     ) -> Option<DataResult<(String, U)>>;
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Rt>;
+    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
 }
 
@@ -48,8 +48,8 @@ impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, Option<T>>
         }
     }
 
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<Option<T>> {
-        let mut obj = ops.get_object(&value)?;
+    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Option<T>> {
+        let mut obj = ops.get_object(value)?;
         match obj.get(&self.field_name) {
             Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
             Err(e) => Err(e),
@@ -69,8 +69,8 @@ pub struct RecordField<T, C: Codec<T>, Struct> {
 }
 
 impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &U) -> DataResult<T> {
-        let mut obj = ops.get_object(&value)?;
+    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
+        let mut obj = ops.get_object(value)?;
         let field = obj.get(&self.field_name)?;
         self.codec.decode(ops, field)
     }
@@ -138,14 +138,13 @@ macro_rules! record_codec {
             }
 
             fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Struct> {
-                let obj = ops.get_object(value)?;
                 $(
-                    let $field: $field_return_type = self.$field.get_field(ops, &value)?;
+                    let $field: $field_return_type = self.$field.get_field(ops, value)?;
                     // let Some($field) = obj.get(&self.$field.field_name) else {
                     //     return Err(DataError::new(&alloc::format!("No) key \"{}\" in object", self.$field.field_name)));
                     // };
                 )*
-
+                let obj = ops.get_object(value)?;
                 let slice = [$(&self.$field.field_name()),*];
                 for key in obj.keys() {
                     if !slice.contains(&&key) {
