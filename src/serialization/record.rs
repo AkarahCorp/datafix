@@ -147,7 +147,7 @@ macro_rules! record_codec {
                 let obj = ops.get_object(value)?;
                 let slice = [$(&self.$field.field_name()),*];
                 for key in obj.keys() {
-                    if !slice.contains(&&key) {
+                    if !slice.contains(&&&*key) {
                         return Err(DataError::new(&alloc::format!("Unsupported key \"{}\" in object", key)))
                     }
                 }

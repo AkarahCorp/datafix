@@ -1,8 +1,8 @@
-use alloc::{string::ToString, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 use json::{JsonValue, number::Number, object::Object};
 
 use crate::{
-    result::DataError,
+    result::{DataError, DataResult},
     serialization::{CodecOps, ListView, ObjectView},
 };
 
@@ -121,8 +121,18 @@ impl<'a> ObjectView<JsonValue> for JsonObjectView<'a> {
         }
     }
 
-    fn keys(&self) -> &[&str] {
-        todo!()
+    fn keys(&self) -> Vec<String> {
+        if let JsonValue::Object(object) = &self.inner {
+            return object.iter().map(|x| x.0.into()).collect();
+        };
+        Vec::new()
+    }
+    
+    fn remove(&mut self, key: &str) -> DataResult<JsonValue> {
+        if let JsonValue::Object(object) = self.inner {
+            return object.remove(key).ok_or_else(|| DataError::new("No key present"))
+        }
+        Err(DataError::new("Not an object"))
     }
 }
 
@@ -157,7 +167,9 @@ impl<'a> ListView<JsonValue> for JsonListView<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::serialization::{Codec, DefaultCodec};
+    use json::{object::Object, JsonValue};
+
+    use crate::{fixers::Fixers, serialization::{Codec, DefaultCodec, RecordCodecBuilder}};
 
     use super::JsonOps;
 
@@ -166,5 +178,46 @@ mod tests {
         let mut encoded = f64::codec().encode(&JsonOps, &10.0).unwrap();
         let decoded = f64::codec().decode(&JsonOps, &mut encoded).unwrap();
         assert_eq!(decoded, 10.0);
+    }
+
+    #[test]
+    fn fixer_encode_decode() {
+        #[derive(Debug, PartialEq)]
+        struct SomeObject {
+            id: i32,
+            age: i32
+        }
+
+        impl SomeObject {
+            pub fn id(&self) -> &i32 {
+                &self.id
+            }
+
+            pub fn age(&self) -> &i32 {
+                &self.age
+            }
+
+            pub fn new(id: i32, age: i32) -> SomeObject {
+                SomeObject { id, age }
+            }
+
+            pub fn codec() -> impl Codec<SomeObject> {
+                RecordCodecBuilder::new()
+                    .field(i32::codec().field_of("id", SomeObject::id))
+                    .field(i32::codec().field_of("age", SomeObject::age))
+                    .build(SomeObject::new)
+                    .fixer(Fixers::field_rename("old_id", "id"))
+                    .fixer(Fixers::field_rename("old_age", "age"))
+            }
+        }
+
+        let value = SomeObject::new(1, 20);
+        let decoded = SomeObject::codec().decode(&JsonOps, &mut JsonValue::Object({
+            let mut obj = Object::new();
+            obj.insert("old_id", JsonValue::Number(1.into()));
+            obj.insert("old_age", JsonValue::Number(20.into()));
+            obj
+        })).unwrap();
+        assert_eq!(decoded, value);
     }
 }

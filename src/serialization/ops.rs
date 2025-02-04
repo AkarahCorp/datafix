@@ -1,4 +1,4 @@
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 
 use crate::result::DataResult;
 
@@ -44,8 +44,8 @@ pub trait CodecOps<T>: Clone {
 pub trait ObjectView<T> {
     fn get(&mut self, name: &str) -> DataResult<&mut T>;
     fn set(&mut self, name: &str, value: T);
-    fn keys(&self) -> &[&str];
-
+    fn remove(&mut self, key: &str) -> DataResult<T>;
+    fn keys(&self) -> Vec<String>;
     fn update<F: FnOnce(&mut T)>(&mut self, name: &str, f: F) {
         if let Ok(v) = self.get(name) {
             f(v)
