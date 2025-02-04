@@ -119,8 +119,8 @@ pub(crate) struct BoundedCodec<T: PartialOrd + Debug, C: Codec<T>, R: RangeBound
 impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T, C, R> {
     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
         if !self.range.contains(value) {
-            Err(DataError::new(&alloc::format!(
-                "Value must be in bounds of {:?} to {:?}",
+            Err(DataError::new_custom(&alloc::format!(
+                "value must be in bounds of {:?} to {:?}",
                 self.range.start_bound(),
                 self.range.end_bound()
             )))
@@ -134,8 +134,8 @@ impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for Bounded
         if self.range.contains(&decoded) {
             Ok(decoded)
         } else {
-            Err(DataError::new(&alloc::format!(
-                "Value must be in bounds of {:?} to {:?}",
+            Err(DataError::new_custom(&alloc::format!(
+                "value must be in bounds of {:?} to {:?}",
                 self.range.start_bound(),
                 self.range.end_bound()
             )))

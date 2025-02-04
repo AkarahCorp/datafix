@@ -50,21 +50,21 @@ impl CodecOps<JsonValue> for JsonOps {
     fn get_number(&self, value: &JsonValue) -> crate::result::DataResult<f64> {
         match value {
             JsonValue::Number(number) => Ok(number.clone().into()),
-            _ => Err(DataError::new("")),
+            _ => Err(DataError::unexpected_type("number")),
         }
     }
 
     fn get_string(&self, value: &JsonValue) -> crate::result::DataResult<alloc::string::String> {
         match value {
             JsonValue::String(string) => Ok(string.clone()),
-            _ => Err(DataError::new("")),
+            _ => Err(DataError::unexpected_type("string")),
         }
     }
 
     fn get_boolean(&self, value: &JsonValue) -> crate::result::DataResult<bool> {
         match value {
             JsonValue::Boolean(boolean) => Ok(boolean.clone()),
-            _ => Err(DataError::new("")),
+            _ => Err(DataError::unexpected_type("boolean")),
         }
     }
 
@@ -74,7 +74,7 @@ impl CodecOps<JsonValue> for JsonOps {
     ) -> crate::result::DataResult<impl crate::serialization::ListView<JsonValue>> {
         match value {
             JsonValue::Array(_) => Ok(JsonListView { inner: value }),
-            _ => Err(DataError::new("")),
+            _ => Err(DataError::unexpected_type("array")),
         }
     }
 
@@ -84,18 +84,18 @@ impl CodecOps<JsonValue> for JsonOps {
     ) -> crate::result::DataResult<impl crate::serialization::ObjectView<JsonValue>> {
         match value {
             JsonValue::Object(_) => Ok(JsonObjectView { inner: value }),
-            _ => Err(DataError::new("")),
+            _ => Err(DataError::unexpected_type("object")),
         }
     }
 
     fn get_unit(&self, value: &JsonValue) -> crate::result::DataResult<()> {
         let JsonValue::Object(object) = value else {
-            return Err(DataError::new(""));
+            return Err(DataError::unexpected_type("object"));
         };
         if object.len() == 0 {
             return Ok(());
         } else {
-            return Err(DataError::new(""));
+            return Err(DataError::new_custom("object must have 0 fields"));
         }
     }
 }
@@ -107,11 +107,11 @@ struct JsonObjectView<'a> {
 impl<'a> ObjectView<JsonValue> for JsonObjectView<'a> {
     fn get(&mut self, name: &str) -> crate::result::DataResult<&mut JsonValue> {
         let JsonValue::Object(object) = self.inner else {
-            return Err(DataError::new("message"));
+            return Err(DataError::unexpected_type("object"));
         };
         match object.get_mut(name) {
             Some(v) => Ok(v),
-            None => Err(DataError::new("err")),
+            None => Err(DataError::key_not_found(name)),
         }
     }
 
@@ -130,9 +130,9 @@ impl<'a> ObjectView<JsonValue> for JsonObjectView<'a> {
     
     fn remove(&mut self, key: &str) -> DataResult<JsonValue> {
         if let JsonValue::Object(object) = self.inner {
-            return object.remove(key).ok_or_else(|| DataError::new("No key present"))
+            return object.remove(key).ok_or_else(|| DataError::key_not_found(key))
         }
-        Err(DataError::new("Not an object"))
+        Err(DataError::unexpected_type("object"))
     }
 }
 
@@ -149,11 +149,12 @@ impl<'a> ListView<JsonValue> for JsonListView<'a> {
 
     fn get(&mut self, index: usize) -> crate::result::DataResult<&mut JsonValue> {
         let JsonValue::Array(array) = self.inner else {
-            return Err(DataError::new("?"));
+            return Err(DataError::unexpected_type("Array"));
         };
+        let len = array.len();
         match array.get_mut(index) {
             Some(v) => Ok(v),
-            None => Err(DataError::new("?")),
+            None => Err(DataError::list_index_out_of_bounds(index, len)),
         }
     }
 
