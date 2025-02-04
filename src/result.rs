@@ -1,4 +1,4 @@
-use core::fmt::Debug;
+use core::{error::Error, fmt::{Debug, Display}};
 
 use alloc::string::String;
 
@@ -29,7 +29,11 @@ impl DataError {
     }
 }
 
-impl Debug for DataError {
+impl Error for DataError {
+    
+}
+
+impl Display for DataError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             DataError::UnexpectedType { expected } => write!(f, "Expected type {}", expected),
@@ -37,6 +41,12 @@ impl Debug for DataError {
             DataError::ListIndexOutOfBounds { list_length, index } => write!(f, "List index {} out of bounds for length {}", index, list_length),
             DataError::Custom { message } => write!(f, "{}", message),
         }
+    }
+}
+
+impl Debug for DataError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
