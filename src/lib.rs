@@ -41,8 +41,14 @@
 
 extern crate alloc;
 
+/// These are helpful types built-in to the crate to save people some work. You can implement traits provided in the crate yourself if these are not
+/// suitable for your application.
 pub mod builtins;
+/// The module for the `Dynamic`. `Dynamic` wraps a `CodecOps<T>` and `T` into a interface designed for manipulating data.
 pub mod dynamic;
+/// The module that holds the code responsible for the fixing portion of this crate, such as the `Fixer` trait.
 pub mod fixers;
+/// The module that contains `DataError`, the error value returned by methods related to this crate when things go wrong.
 pub mod result;
+/// The module responsible for transforming data between different types and representations.
 pub mod serialization;

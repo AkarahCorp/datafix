@@ -13,24 +13,36 @@ use crate::result::DataResult;
 /// it will try to optimize the updating and apply it to the top-level instead of creating new copies everywhere.
 ///
 /// [`Codec`]: [`super::Codec`]
+/// [`Codec::decode`]: [`super::Codec::decode`]
 pub trait CodecOps<T>: Clone {
+    /// Creates a new numeric value of type `T`. The range of the underlying number should be atleast of `f64` for maximum compatability.
     fn create_number(&self, value: &f64) -> T;
+    /// Creates a new string value of type `T`.
     fn create_string(&self, value: &str) -> T;
+    /// Creates a new boolean value of type `T`.
     fn create_boolean(&self, value: &bool) -> T;
+    /// Creates a new list value of type `T`, containing other values of type `T`.
     fn create_list(&self, value: impl IntoIterator<Item = T>) -> T;
+    /// Creates a new object type of type `T`. The iterator should be used to construct the object with the String as the key and the `T` as the value.
     fn create_object(&self, pairs: impl IntoIterator<Item = (String, T)>) -> T;
+    /// Creates a new object type of type `T`. The value should have no associated fields or value. An empty object is a valid example of a representation.
     fn create_unit(&self) -> T;
 
+    /// This converts a value of type `T` into a value of type `f64`.
     fn get_number(&self, value: &T) -> DataResult<f64>;
+    /// This converts a value of type `T` into a value of type `String`.
     fn get_string(&self, value: &T) -> DataResult<String>;
+    /// This converts a value of type `T` into a value of type `bool`.
     fn get_boolean(&self, value: &T) -> DataResult<bool>;
+    /// This converts a value of type `T` into a view into a list's contents.
     fn get_list(&self, value: &mut T) -> DataResult<impl ListView<T>>;
+    /// This converts a value of type `T` into a view into an object's contents.
     fn get_object(&self, value: &mut T) -> DataResult<impl ObjectView<T>>;
+    /// This converts a value of type `T` into a unit value with no fields or associated values.
     fn get_unit(&self, value: &T) -> DataResult<()>;
 
-    // This purely exists for Optional Fields. The `Option` represents if a field is present,
-    // the `DataResult` represents the actual field data.
-    // TODO: convert to a no-copy implementation
+    /// This purely exists for Optional Fields. The `Option` represents if a field is present,
+    /// the `DataResult` represents the actual field data.
     fn create_object_special(
         &self,
         pairs: impl IntoIterator<Item = Option<DataResult<(String, T)>>>,
@@ -41,11 +53,19 @@ pub trait CodecOps<T>: Clone {
     }
 }
 
+/// Represents a lens into an object type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`ObjectView`]
+/// will result in the underlying datastructures being mutated.
 pub trait ObjectView<T> {
+    /// Obtains a mutable reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the object.
     fn get(&mut self, name: &str) -> DataResult<&mut T>;
+    /// Sets a key-value pair in the object to a certain value.
     fn set(&mut self, name: &str, value: T);
+    /// Removes a certain key from the object, returning it's old value if the value was present. May return a DataError::KeyNotFoundInMap if the key
+    /// was not present in the object before,
     fn remove(&mut self, key: &str) -> DataResult<T>;
+    /// Obtains an owned and cloned list of keys that the object contained at the moment of calling.
     fn keys(&self) -> Vec<String>;
+    /// Updates a value in the object to a new value if a value was already present under the key.
     fn update<F: FnOnce(&mut T)>(&mut self, name: &str, f: F) {
         if let Ok(v) = self.get(name) {
             f(v)
@@ -53,8 +73,14 @@ pub trait ObjectView<T> {
     }
 }
 
+/// Represents a lens into an list type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`ListView`]
+/// will result in the underlying datastructures being mutated.
 pub trait ListView<T> {
+    /// Appends a new value to the list. This may allocate.
     fn append(&mut self, value: T);
+    /// Gets a mutable reference to a value at an index inside of a list. May return a DataError::ListIndexOutOfBounds if the index is out of bounds.
+    /// This is up to the implementor of this method to check.
     fn get(&mut self, index: usize) -> DataResult<&mut T>;
+    /// This consumes the value inside of the ListView and turns it into an iterator. This method may change in the near future.
     fn into_iter(self) -> impl Iterator<Item = T>;
 }
