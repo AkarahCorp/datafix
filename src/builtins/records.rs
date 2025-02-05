@@ -1,13 +1,7 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
 use alloc::string::String;
-
-use crate::result::{DataError, DataResult};
-
-use super::{
-    Codec,
-    ops::{CodecOps, ObjectView},
-};
+use crate::{result::{DataError, DataResult}, serialization::{Codec, CodecOps, ObjectView}};
 
 pub trait RecordFieldGetter<T, C: Codec<T>, Struct, Rt> {
     fn encode_into<U, O: CodecOps<U>>(

@@ -1,6 +1,6 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
-use super::{Codec, record::*};
+use crate::{builtins::records::*, serialization::Codec};
 
 pub struct RecordCodecBuilder<InnerCodec> {
     pub(crate) codec: InnerCodec,
@@ -45,6 +45,7 @@ macro_rules! impl_record_codec_builder {
         $next_type:ident as
         $next_name:ident[$next_codec:ident; $next_field_type:ident; $next_field_return_type:ident]
     ) => {
+        #[doc(hidden)]
         impl<
             $(
                 $name,
