@@ -25,9 +25,9 @@ pub trait CodecOps<T>: Clone {
     fn create_boolean(&self, value: &bool) -> T;
     /// Creates a new list value of type `T`, containing other values of type `T`.
     fn create_list(&self, value: impl IntoIterator<Item = T>) -> T;
-    /// Creates a new object type of type `T`. The iterator should be used to construct the object with the String as the key and the `T` as the value.
-    fn create_object(&self, pairs: impl IntoIterator<Item = (String, T)>) -> T;
-    /// Creates a new object type of type `T`. The value should have no associated fields or value. An empty object is a valid example of a representation.
+    /// Creates a new map type of type `T`. The iterator should be used to construct the map with the String as the key and the `T` as the value.
+    fn create_map(&self, pairs: impl IntoIterator<Item = (String, T)>) -> T;
+    /// Creates a new map type of type `T`. The value should have no associated fields or value. An empty map is a valid example of a representation.
     fn create_unit(&self) -> T;
 
     /// This converts a value of type `T` into a value of type `f64`.
@@ -38,36 +38,36 @@ pub trait CodecOps<T>: Clone {
     fn get_boolean(&self, value: &T) -> DataResult<bool>;
     /// This converts a value of type `T` into a view into a list's contents.
     fn get_list(&self, value: &mut T) -> DataResult<impl ListView<T>>;
-    /// This converts a value of type `T` into a view into an object's contents.
-    fn get_object(&self, value: &mut T) -> DataResult<impl ObjectView<T>>;
+    /// This converts a value of type `T` into a view into an map's contents.
+    fn get_map(&self, value: &mut T) -> DataResult<impl MapView<T>>;
     /// This converts a value of type `T` into a unit value with no fields or associated values.
     fn get_unit(&self, value: &T) -> DataResult<()>;
 
     /// This purely exists for Optional Fields. The `Option` represents if a field is present,
     /// the `DataResult` represents the actual field data.
-    fn create_object_special(
+    fn create_map_special(
         &self,
         pairs: impl IntoIterator<Item = Option<DataResult<(String, T)>>>,
     ) -> DataResult<T> {
         let iter1 = pairs.into_iter().filter_map(|x| x).filter_map(|x| x.ok());
 
-        Ok(self.create_object(iter1))
+        Ok(self.create_map(iter1))
     }
 }
 
-/// Represents a lens into an object type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`ObjectView`]
+/// Represents a lens into an map type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`MapView`]
 /// will result in the underlying datastructures being mutated.
-pub trait ObjectView<T> {
-    /// Obtains a mutable reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the object.
+pub trait MapView<T> {
+    /// Obtains a mutable reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
     fn get(&mut self, name: &str) -> DataResult<&mut T>;
-    /// Sets a key-value pair in the object to a certain value.
+    /// Sets a key-value pair in the map to a certain value.
     fn set(&mut self, name: &str, value: T);
-    /// Removes a certain key from the object, returning it's old value if the value was present. May return a DataError::KeyNotFoundInMap if the key
-    /// was not present in the object before,
+    /// Removes a certain key from the map, returning it's old value if the value was present. May return a DataError::KeyNotFoundInMap if the key
+    /// was not present in the map before,
     fn remove(&mut self, key: &str) -> DataResult<T>;
-    /// Obtains an owned and cloned list of keys that the object contained at the moment of calling.
+    /// Obtains an owned and cloned list of keys that the map contained at the moment of calling.
     fn keys(&self) -> Vec<String>;
-    /// Updates a value in the object to a new value if a value was already present under the key.
+    /// Updates a value in the map to a new value if a value was already present under the key.
     fn update<F: FnOnce(&mut T)>(&mut self, name: &str, f: F) {
         if let Ok(v) = self.get(name) {
             f(v)

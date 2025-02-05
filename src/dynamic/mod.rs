@@ -2,7 +2,7 @@ use alloc::string::String;
 
 use crate::{
     result::DataResult,
-    serialization::{CodecOps, ListView, ObjectView},
+    serialization::{CodecOps, ListView, MapView},
 };
 
 pub struct Dynamic<'a, T, O: CodecOps<T>> {
@@ -47,8 +47,8 @@ impl<'a, T, O: CodecOps<T>> Dynamic<'a, T, O> {
         self.ops.get_unit(&self.value)
     }
 
-    pub fn as_object(&mut self) -> DataResult<impl ObjectView<T>> {
-        self.ops.get_object(self.value)
+    pub fn as_map(&mut self) -> DataResult<impl MapView<T>> {
+        self.ops.get_map(self.value)
     }
 
     pub fn as_list(&mut self) -> DataResult<impl ListView<T>> {

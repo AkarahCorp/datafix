@@ -4,14 +4,14 @@ use crate::{serialization::builtins::records::*, serialization::Codec};
 
 use super::records::UnitCodec;
 
-pub struct RecordCodecBuilder<C> {
+pub struct MapCodecBuilder<C> {
     pub(crate) codec: C,
 }
 
 #[doc(hidden)]
-impl RecordCodecBuilder<UnitCodec> {
-    pub fn new() -> RecordCodecBuilder<UnitCodec> {
-        RecordCodecBuilder {
+impl MapCodecBuilder<UnitCodec> {
+    pub fn new() -> MapCodecBuilder<UnitCodec> {
+        MapCodecBuilder {
             codec: UnitCodec {},
         }
     }
@@ -20,14 +20,14 @@ impl RecordCodecBuilder<UnitCodec> {
         P1,
         P1C: Codec<P1>,
         P1R,
-        NxtField: RecordFieldGetter<P1, P1C, Struct, P1R>,
+        NxtField: MapFieldGetter<P1, P1C, Struct, P1R>,
         Struct,
     >(
         self,
         field: NxtField,
-    ) -> RecordCodecBuilder<RecordCodec1<P1, P1C, P1R, NxtField, Struct>> {
-        RecordCodecBuilder {
-            codec: RecordCodec1 {
+    ) -> MapCodecBuilder<MapCodec1<P1, P1C, P1R, NxtField, Struct>> {
+        MapCodecBuilder {
+            codec: MapCodec1 {
                 codec1: field,
                 into_struct: OnceCell::new(),
                 _phantom: PhantomData,
@@ -54,10 +54,10 @@ macro_rules! impl_record_codec_builder {
                 $name,
                 $codec: Codec<$name>,
                 $field_return_type,
-                $field_type: RecordFieldGetter<$name, $codec, Struct, $field_return_type>
+                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
             ),*
             , Struct
-        > RecordCodecBuilder<
+        > MapCodecBuilder<
             $type<
                 $(
                     $name,
@@ -72,7 +72,7 @@ macro_rules! impl_record_codec_builder {
                 $next_name,
                 $next_codec: Codec<$next_name>,
                 $next_field_return_type,
-                NxtField: RecordFieldGetter<
+                NxtField: MapFieldGetter<
                     $next_name,
                     $next_codec,
                     Struct,
@@ -80,13 +80,13 @@ macro_rules! impl_record_codec_builder {
             (
                 self,
                 field: NxtField
-            ) -> RecordCodecBuilder<
+            ) -> MapCodecBuilder<
                 $next_type<
                     $($name, $codec, $field_return_type, $field_type),*,
                     $next_name, $next_codec, $next_field_return_type, NxtField, Struct
                 >
             > {
-                RecordCodecBuilder {
+                MapCodecBuilder {
                     codec: $next_type {
                         $($field: self.codec.$field),*,
                         $next_field_name: field,
@@ -110,8 +110,8 @@ macro_rules! impl_record_codec_builder_last {
         fields: { $($field:ident: $name:ident[$codec:ident; $field_type:ident; $field_return_type:ident]),* }
     ) => {
         #[doc(hidden)]
-        impl<$($name, $codec: Codec<$name>, $field_return_type, $field_type: RecordFieldGetter<$name, $codec, Struct, $field_return_type>),*, Struct>
-            RecordCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct>> {
+        impl<$($name, $codec: Codec<$name>, $field_return_type, $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>),*, Struct>
+            MapCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct>> {
             pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct> {
                 self.codec.into_struct.set(into_struct).unwrap();
                 self.codec
@@ -121,59 +121,59 @@ macro_rules! impl_record_codec_builder_last {
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec1,
+    type: MapCodec1,
     fields: { codec1: P1[P1C; P1F; P1R] },
-    next: codec2: RecordCodec2 as P2[P2C; P2F; P2R]
+    next: codec2: MapCodec2 as P2[P2C; P2F; P2R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec2,
+    type: MapCodec2,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R] },
-    next: codec3: RecordCodec3 as P3[P3C; P3F; P3R]
+    next: codec3: MapCodec3 as P3[P3C; P3F; P3R]
 }
 impl_record_codec_builder! {
-    type: RecordCodec3,
+    type: MapCodec3,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R] },
-    next: codec4: RecordCodec4 as P4[P4C; P4F; P4R]
+    next: codec4: MapCodec4 as P4[P4C; P4F; P4R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec4,
+    type: MapCodec4,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R] },
-    next: codec5: RecordCodec5 as P5[P5C; P5F; P5R]
+    next: codec5: MapCodec5 as P5[P5C; P5F; P5R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec5,
+    type: MapCodec5,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R] },
-    next: codec6: RecordCodec6 as P6[P6C; P6F; P6R]
+    next: codec6: MapCodec6 as P6[P6C; P6F; P6R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec6,
+    type: MapCodec6,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R] },
-    next: codec7: RecordCodec7 as P7[P7C; P7F; P7R]
+    next: codec7: MapCodec7 as P7[P7C; P7F; P7R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec7,
+    type: MapCodec7,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R] },
-    next: codec8: RecordCodec8 as P8[P8C; P8F; P8R]
+    next: codec8: MapCodec8 as P8[P8C; P8F; P8R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec8,
+    type: MapCodec8,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R] },
-    next: codec9: RecordCodec9 as P9[P9C; P9F; P9R]
+    next: codec9: MapCodec9 as P9[P9C; P9F; P9R]
 }
 
 impl_record_codec_builder! {
-    type: RecordCodec9,
+    type: MapCodec9,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R] },
-    next: codec10: RecordCodec10 as P10[P10C; P10F; P10R]
+    next: codec10: MapCodec10 as P10[P10C; P10F; P10R]
 }
 
 impl_record_codec_builder_last! {
-    type: RecordCodec10,
+    type: MapCodec10,
     fields: { codec1: P1[P1C; P1F; P1R], codec2: P2[P2C; P2F; P2R], codec3: P3[P3C; P3F; P3R], codec4: P4[P4C; P4F; P4R], codec5: P5[P5C; P5F; P5R], codec6: P6[P6C; P6F; P6R], codec7: P7[P7C; P7F; P7R], codec8: P8[P8C; P8F; P8R], codec9: P9[P9C; P9F; P9R], codec10: P10[P10C; P10F; P10R] }
 }

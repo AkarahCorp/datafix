@@ -1,9 +1,9 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
 use alloc::string::String;
-use crate::{result::{DataError, DataResult}, serialization::{Codec, CodecOps, ObjectView}};
+use crate::{result::{DataError, DataResult}, serialization::{Codec, CodecOps, MapView}};
 
-pub trait RecordFieldGetter<T, C: Codec<T>, Struct, Rt> {
+pub trait MapFieldGetter<T, C: Codec<T>, Struct, Rt> {
     fn encode_into<U, O: CodecOps<U>>(
         &self,
         ops: &O,
@@ -20,7 +20,7 @@ pub struct OptionalField<T, C: Codec<T>, Struct> {
     pub(crate) _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, Option<T>>
+impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, Option<T>>
     for OptionalField<T, C, Struct>
 {
     fn encode_into<U, O: CodecOps<U>>(
@@ -43,7 +43,7 @@ impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, Option<T>>
     }
 
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Option<T>> {
-        let mut obj = ops.get_object(value)?;
+        let mut obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
             Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
             Err(e) => Err(e),
@@ -62,9 +62,9 @@ pub struct RecordField<T, C: Codec<T>, Struct> {
     pub(crate) _phantom: PhantomData<fn() -> T>,
 }
 
-impl<T, C: Codec<T>, Struct> RecordFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
+impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
-        let mut obj = ops.get_object(value)?;
+        let mut obj = ops.get_map(value)?;
         let field = obj.get(&self.field_name)?;
         self.codec.decode(ops, field)
     }
@@ -109,7 +109,7 @@ macro_rules! record_codec {
                 $name,
                 $codec: Codec<$name>,
                 $field_return_type,
-                $field_type: RecordFieldGetter<$name, $codec, Struct, $field_return_type>
+                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
             ),*,
             Struct
         > {
@@ -123,10 +123,10 @@ macro_rules! record_codec {
             $name,
             $codec: Codec<$name>,
             $field_return_type,
-            $field_type: RecordFieldGetter<$name, $codec, Struct, $field_return_type>
+            $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
         ),*> Codec<Struct> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct> {
             fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
-                ops.create_object_special([
+                ops.create_map_special([
                     $(self.$field.encode_into(ops, value),)*
                 ])
             }
@@ -134,20 +134,16 @@ macro_rules! record_codec {
             fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Struct> {
                 $(
                     let $field: $field_return_type = self.$field.get_field(ops, value)?;
-                    // let Some($field) = obj.get(&self.$field.field_name) else {
-                    //     return Err(DataError::new(&alloc::format!("No) key \"{}\" in object", self.$field.field_name)));
-                    // };
                 )*
-                let obj = ops.get_object(value)?;
+                let map = ops.get_map(value)?;
                 let slice = [$(&self.$field.field_name()),*];
-                for key in obj.keys() {
+                for key in map.keys() {
                     if !slice.contains(&&&*key) {
                         return Err(DataError::new_custom(&alloc::format!("Unsupported key \"{}\" in object", key)))
                     }
                 }
 
                 Ok((self.into_struct.get().unwrap())(
-                    // $((self.$field.codec.decode(ops, $field))?),*
                     $($field),*
                 ))
             }
@@ -156,14 +152,14 @@ macro_rules! record_codec {
 }
 
 record_codec! {
-    name: RecordCodec1,
+    name: MapCodec1,
     fields: {
         codec1: P1[P1C; P1F; P1R]
     }
 }
 
 record_codec! {
-    name: RecordCodec2,
+    name: MapCodec2,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R]
@@ -171,7 +167,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec3,
+    name: MapCodec3,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -180,7 +176,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec4,
+    name: MapCodec4,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -190,7 +186,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec5,
+    name: MapCodec5,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -201,7 +197,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec6,
+    name: MapCodec6,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -213,7 +209,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec7,
+    name: MapCodec7,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -226,7 +222,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec8,
+    name: MapCodec8,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -240,7 +236,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec9,
+    name: MapCodec9,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -255,7 +251,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec10,
+    name: MapCodec10,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -271,7 +267,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec11,
+    name: MapCodec11,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -288,7 +284,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec12,
+    name: MapCodec12,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -306,7 +302,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec13,
+    name: MapCodec13,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -325,7 +321,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec14,
+    name: MapCodec14,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -345,7 +341,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec15,
+    name: MapCodec15,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],
@@ -366,7 +362,7 @@ record_codec! {
 }
 
 record_codec! {
-    name: RecordCodec16,
+    name: MapCodec16,
     fields: {
         codec1: P1[P1C; P1F; P1R],
         codec2: P2[P2C; P2F; P2R],

@@ -2,7 +2,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use alloc::{string::{String, ToString}, vec::Vec};
 
-use crate::{dynamic::Dynamic, fixers::Fixer, result::{DataError, DataResult}, serialization::{Codec, CodecOps, DefaultCodec, ListView, ObjectView}};
+use crate::{dynamic::Dynamic, fixers::Fixer, result::{DataError, DataResult}, serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView}};
 
 pub(crate) struct F64Codec;
 
@@ -185,7 +185,7 @@ pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
 }
 impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
     fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &(L, R)) -> DataResult<U> {
-        Ok(ops.create_object(
+        Ok(ops.create_map(
             [
                 ("left".to_string(), self.left.encode(ops, &value.0)?),
                 ("right".to_string(), self.right.encode(ops, &value.1)?),
@@ -195,7 +195,7 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
     }
 
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<(L, R)> {
-        let mut obj = ops.get_object(value)?;
+        let mut obj = ops.get_map(value)?;
         let mut left = obj.get("left")?;
         let p1 = self.left.decode(ops, &mut left)?;
         let mut right = obj.get("right")?;

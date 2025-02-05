@@ -3,7 +3,7 @@ use json::{JsonValue, number::Number, object::Object};
 
 use crate::{
     result::{DataError, DataResult},
-    serialization::{CodecOps, ListView, ObjectView},
+    serialization::{CodecOps, ListView, MapView},
 };
 
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ impl CodecOps<JsonValue> for JsonOps {
         JsonValue::Array(vec)
     }
 
-    fn create_object(
+    fn create_map(
         &self,
         pairs: impl IntoIterator<Item = (alloc::string::String, JsonValue)>,
     ) -> JsonValue {
@@ -78,10 +78,10 @@ impl CodecOps<JsonValue> for JsonOps {
         }
     }
 
-    fn get_object(
+    fn get_map(
         &self,
         value: &mut JsonValue,
-    ) -> crate::result::DataResult<impl crate::serialization::ObjectView<JsonValue>> {
+    ) -> crate::result::DataResult<impl crate::serialization::MapView<JsonValue>> {
         match value {
             JsonValue::Object(_) => Ok(JsonObjectView { inner: value }),
             _ => Err(DataError::unexpected_type("object")),
@@ -104,7 +104,7 @@ struct JsonObjectView<'a> {
     inner: &'a mut JsonValue,
 }
 
-impl<'a> ObjectView<JsonValue> for JsonObjectView<'a> {
+impl<'a> MapView<JsonValue> for JsonObjectView<'a> {
     fn get(&mut self, name: &str) -> crate::result::DataResult<&mut JsonValue> {
         let JsonValue::Object(object) = self.inner else {
             return Err(DataError::unexpected_type("object"));
@@ -170,7 +170,7 @@ impl<'a> ListView<JsonValue> for JsonListView<'a> {
 mod tests {
     use json::{object::Object, JsonValue};
 
-    use crate::{fixers::Fixers, serialization::{Codec, CodecAdapters, DefaultCodec, RecordCodecBuilder}};
+    use crate::{fixers::Fixers, serialization::{Codec, CodecAdapters, DefaultCodec, MapCodecBuilder}};
 
     use super::JsonOps;
 
@@ -203,7 +203,7 @@ mod tests {
             }
 
             pub fn codec() -> impl Codec<SomeObject> {
-                RecordCodecBuilder::new()
+                MapCodecBuilder::new()
                     .field(i32::codec().field_of("id", SomeObject::id))
                     .field(i32::codec().field_of("age", SomeObject::age))
                     .build(SomeObject::new)

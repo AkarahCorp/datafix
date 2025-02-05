@@ -8,16 +8,19 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 pub use ops::*;
 
 use crate::{fixers::Fixer, result::DataResult};
-pub use builtins::record_builder::RecordCodecBuilder;
+pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
 /// [`Codec`]s are lazy, they don't do anything by themselves.
 /// You need to call [`Codec::encode`], [`Codec::decode`] to change between `T` and [`Dynamic`].
-/// For more complex use cases, you can call helper methods such as [`Codec::list_of`] and [`Codec::xmap`].
+/// For more complex use cases, you can call helper methods on [`CodecAdapter`] such as [`CodecAdapter::list_of`] and [`CodecAdapter::xmap`].
 ///
 /// For implementors, try to keep implementations of this trait pure, immutable, and deterministic.
 ///
 /// [`Dynamic`]: [`dynamic::Dynamic`]
+/// [`CodecAdapter`]: [`serialization::CodecAdapter`]
+/// [`CodecAdapter::xmap`]: [`serialization::CodecAdapter::xmap`]
+/// [`CodecAdapter::list_of`]: [`serialization::CodecAdapter::list_of`]
 pub trait Codec<T>
 where
     Self: Sized,
