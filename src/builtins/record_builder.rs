@@ -2,10 +2,11 @@ use core::{cell::OnceCell, marker::PhantomData};
 
 use crate::{builtins::records::*, serialization::Codec};
 
-pub struct RecordCodecBuilder<InnerCodec> {
-    pub(crate) codec: InnerCodec,
+pub struct RecordCodecBuilder<C> {
+    pub(crate) codec: C,
 }
 
+#[doc(hidden)]
 impl RecordCodecBuilder<UnitCodec> {
     pub fn new() -> RecordCodecBuilder<UnitCodec> {
         RecordCodecBuilder {
@@ -106,6 +107,7 @@ macro_rules! impl_record_codec_builder_last {
         type: $type:ident,
         fields: { $($field:ident: $name:ident[$codec:ident; $field_type:ident; $field_return_type:ident]),* }
     ) => {
+        #[doc(hidden)]
         impl<$($name, $codec: Codec<$name>, $field_return_type, $field_type: RecordFieldGetter<$name, $codec, Struct, $field_return_type>),*, Struct>
             RecordCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct>> {
             pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct> {
