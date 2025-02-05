@@ -27,6 +27,14 @@ where
     /// For implementors, this function should be pure and have no side effects.
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T>;
 
+}
+
+/// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
+/// - Turn into record fields
+/// - Convert between types
+/// - Have a list codec that contains the type of the provided codec
+pub trait CodecAdapters<T> 
+where Self: Sized + Codec<T> {
     /// Returns a codec of this type that is intended for a field of a record.
     fn field_of<Struct>(
         self,
@@ -108,6 +116,8 @@ where
         }
     }
 }
+
+impl<T, C: Codec<T>> CodecAdapters<T> for C {}
 
 /// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible. 
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.

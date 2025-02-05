@@ -170,7 +170,7 @@ impl<'a> ListView<JsonValue> for JsonListView<'a> {
 mod tests {
     use json::{object::Object, JsonValue};
 
-    use crate::{fixers::Fixers, serialization::{Codec, DefaultCodec, RecordCodecBuilder}};
+    use crate::{fixers::Fixers, serialization::{Codec, CodecAdapters, DefaultCodec, RecordCodecBuilder}};
 
     use super::JsonOps;
 
