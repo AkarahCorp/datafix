@@ -1,6 +1,8 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
-use crate::{builtins::records::*, serialization::Codec};
+use crate::{serialization::builtins::records::*, serialization::Codec};
+
+use super::records::UnitCodec;
 
 pub struct RecordCodecBuilder<C> {
     pub(crate) codec: C,

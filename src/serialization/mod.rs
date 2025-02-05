@@ -1,12 +1,14 @@
 mod ops;
+mod builtins;
 
-use crate::{builtins::codecs::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec}, fixers::Fixer, result::DataResult};
 use alloc::{string::String, vec::Vec};
+use builtins::{codecs::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec}, records::{OptionalField, RecordField}};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
-pub use crate::builtins::record_builder::RecordCodecBuilder;
-pub use crate::builtins::records::{OptionalField, RecordField};
 pub use ops::*;
+
+use crate::{fixers::Fixer, result::DataResult};
+pub use builtins::record_builder::RecordCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
 /// [`Codec`]s are lazy, they don't do anything by themselves.

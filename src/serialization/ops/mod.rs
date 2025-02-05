@@ -1,3 +1,5 @@
+pub mod json;
+
 use alloc::{string::String, vec::Vec};
 
 use crate::result::DataResult;
