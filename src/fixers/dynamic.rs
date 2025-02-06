@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// An abstraction over a value and it's associated [`CodecOps`].
-/// 
+///
 /// This holds a reference to an underlying value and owns an instance of [`CodecOps`], allowing for a more convenient transformation API
 /// than using the [`CodecOps`] and underlying value directly.
 pub struct Dynamic<'a, T, O: CodecOps<T>> {
@@ -59,7 +59,6 @@ impl<'a, T, O: CodecOps<T>> Dynamic<'a, T, O> {
     pub fn as_boolean(&self) -> DataResult<bool> {
         self.ops.get_boolean(&self.value)
     }
-
 
     /// Attempts to convert the underlying value into an empty tuple `()`, returning an error variant if it's unable to do so.
     pub fn as_unit(&self) -> DataResult<()> {
