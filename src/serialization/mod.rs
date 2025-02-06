@@ -2,12 +2,12 @@ mod ops;
 mod builtins;
 
 use alloc::{string::String, vec::Vec};
-use builtins::{codecs::{BoundedCodec, DataFixCodec, ListCodec, PairCodec, XMapCodec}, records::{OptionalField, RecordField}};
+use builtins::{codecs::{BoundedCodec, ListCodec, PairCodec, XMapCodec}, records::{OptionalField, RecordField}};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
 
-use crate::{fixers::Fixer, result::DataResult};
+use crate::result::DataResult;
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -96,15 +96,6 @@ where Self: Sized + Codec<T> {
         PairCodec {
             left: self,
             right,
-            _phantom: PhantomData,
-        }
-    }
-
-    /// This function allows you to apply a [`Fixer`] rule to a Codec.
-    fn fixer<R: Fixer>(self, rule: R) -> impl Codec<T> {
-        DataFixCodec {
-            inner: self,
-            rule,
             _phantom: PhantomData,
         }
     }

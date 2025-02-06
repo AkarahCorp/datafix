@@ -2,7 +2,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use alloc::{string::{String, ToString}, vec::Vec};
 
-use crate::{dynamic::Dynamic, fixers::Fixer, result::{DataError, DataResult}, serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView}};
+use crate::{result::{DataError, DataResult}, serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView}};
 
 pub(crate) struct F64Codec;
 
@@ -154,27 +154,6 @@ where
 
     fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &mut OpsType) -> DataResult<U> {
         Ok((self.f)(&self.inner.decode(ops, value)?))
-    }
-}
-
-pub(crate) struct DataFixCodec<T, C: Codec<T>, R: Fixer> {
-    pub(crate) inner: C,
-    pub(crate) rule: R,
-    pub(crate) _phantom: PhantomData<T>,
-}
-
-impl<T, C: Codec<T>, R: Fixer> Codec<T> for DataFixCodec<T, C, R> {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
-        let mut encoded = self.inner.encode(ops, value)?;
-        let dynamic = Dynamic::new(ops.clone(), &mut encoded);
-        self.rule.fix(dynamic);
-        Ok(encoded)
-    }
-
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
-        let dynamic = Dynamic::new(ops.clone(), value);
-        self.rule.fix(dynamic);
-        self.inner.decode(ops, value)
     }
 }
 
