@@ -1,6 +1,6 @@
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{boxed::Box, string::{String, ToString}, vec::Vec};
 
 use crate::{dynamic::Dynamic, fixers::Fixer, result::{DataError, DataResult}, serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView}};
 

@@ -46,7 +46,9 @@ impl Display for DataError {
 
 impl Debug for DataError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        Display::fmt(self, f)
+        f.write_str("DataError { ")?;
+        Display::fmt(self, f)?;
+        f.write_str(" }")
     }
 }
 
