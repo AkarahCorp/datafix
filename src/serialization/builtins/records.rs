@@ -1,7 +1,7 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
 use crate::{
-    fixers::schema::Type,
+    fixers::Type,
     result::{DataError, DataResult},
     serialization::{Codec, CodecOps, MapView},
 };
@@ -111,7 +111,7 @@ impl Codec<()> for UnitCodec {
         ops.get_unit(value)
     }
 
-    fn get_type(&self) -> crate::fixers::schema::Type {
+    fn get_type(&self) -> crate::fixers::Type {
         Type::unit()
     }
 }
@@ -165,12 +165,12 @@ macro_rules! record_codec {
                 ))
             }
 
-            fn get_type(&self) -> crate::fixers::schema::Type {
-                let mut map = crate::fixers::schema::TypeMap::new();
+            fn get_type(&self) -> crate::fixers::Type {
+                let mut map = crate::fixers::TypeMap::new();
                 $(
                     map.insert_field(self.$field.field_name(), self.$field.field_type());
                 )*
-                crate::fixers::schema::Type::map(map)
+                crate::fixers::Type::map(map)
             }
         }
     };

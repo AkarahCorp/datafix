@@ -10,7 +10,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
 
-use crate::{fixers::schema::Type, result::DataResult};
+use crate::{fixers::Type, result::DataResult};
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.

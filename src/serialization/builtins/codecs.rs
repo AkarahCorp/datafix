@@ -6,7 +6,7 @@ use alloc::{
 };
 
 use crate::{
-    fixers::schema::{Type, TypeMap},
+    fixers::{Type, TypeMap},
     result::{DataError, DataResult},
     serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView},
 };
@@ -22,7 +22,7 @@ impl Codec<f64> for F64Codec {
         ops.get_number(value)
     }
 
-    fn get_type(&self) -> crate::fixers::schema::Type {
+    fn get_type(&self) -> crate::fixers::Type {
         Type::number()
     }
 }
