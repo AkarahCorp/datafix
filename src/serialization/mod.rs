@@ -1,13 +1,16 @@
-mod ops;
 mod builtins;
+mod ops;
 
 use alloc::{string::String, vec::Vec};
-use builtins::{codecs::{BoundedCodec, ListCodec, PairCodec, XMapCodec}, records::{OptionalField, RecordField}};
+use builtins::{
+    codecs::{BoundedCodec, ListCodec, PairCodec, XMapCodec},
+    records::{OptionalField, RecordField},
+};
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
 
-use crate::result::DataResult;
+use crate::{fixers::schema::Type, result::DataResult};
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -31,15 +34,17 @@ where
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T>;
-
+    fn get_type(&self) -> Type;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
 /// - Turn into record fields
 /// - Convert between types
 /// - Have a list codec that contains the type of the provided codec
-pub trait CodecAdapters<T> 
-where Self: Sized + Codec<T> {
+pub trait CodecAdapters<T>
+where
+    Self: Sized + Codec<T>,
+{
     /// Returns a codec of this type that is intended for a field of a record.
     fn field_of<Struct>(
         self,
@@ -76,7 +81,7 @@ where Self: Sized + Codec<T> {
         }
     }
 
-    /// Maps the output of this codec between 2 transformation functions. 
+    /// Maps the output of this codec between 2 transformation functions.
     /// Implementors should hold the invariant of `F(G(x)) = x` such that the functions can be used to freely convert between the two types.
     fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U>
     where
@@ -115,7 +120,7 @@ where Self: Sized + Codec<T> {
 
 impl<T, C: Codec<T>> CodecAdapters<T> for C {}
 
-/// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible. 
+/// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible.
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.
 pub trait DefaultCodec
 where

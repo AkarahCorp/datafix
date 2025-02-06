@@ -1,7 +1,11 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
+use crate::{
+    fixers::schema::Type,
+    result::{DataError, DataResult},
+    serialization::{Codec, CodecOps, MapView},
+};
 use alloc::string::String;
-use crate::{result::{DataError, DataResult}, serialization::{Codec, CodecOps, MapView}};
 
 pub trait MapFieldGetter<T, C: Codec<T>, Struct, Rt> {
     fn encode_into<U, O: CodecOps<U>>(
@@ -11,6 +15,7 @@ pub trait MapFieldGetter<T, C: Codec<T>, Struct, Rt> {
     ) -> Option<DataResult<(String, U)>>;
     fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
+    fn field_type(&self) -> Type;
 }
 
 pub struct OptionalField<T, C: Codec<T>, Struct> {
@@ -53,6 +58,10 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, Option<T>>
     fn field_name(&self) -> &str {
         &self.field_name
     }
+
+    fn field_type(&self) -> Type {
+        self.codec.get_type()
+    }
 }
 
 pub struct RecordField<T, C: Codec<T>, Struct> {
@@ -85,6 +94,10 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, T> for RecordField<T, 
         };
         Some(Ok((self.field_name.clone(), e)))
     }
+
+    fn field_type(&self) -> Type {
+        self.codec.get_type()
+    }
 }
 
 pub struct UnitCodec {}
@@ -96,6 +109,10 @@ impl Codec<()> for UnitCodec {
 
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<()> {
         ops.get_unit(value)
+    }
+
+    fn get_type(&self) -> crate::fixers::schema::Type {
+        Type::unit()
     }
 }
 
@@ -146,6 +163,14 @@ macro_rules! record_codec {
                 Ok((self.into_struct.get().unwrap())(
                     $($field),*
                 ))
+            }
+
+            fn get_type(&self) -> crate::fixers::schema::Type {
+                let mut map = crate::fixers::schema::TypeMap::new();
+                $(
+                    map.insert_field(self.$field.field_name(), self.$field.field_type());
+                )*
+                crate::fixers::schema::Type::map(map)
             }
         }
     };
