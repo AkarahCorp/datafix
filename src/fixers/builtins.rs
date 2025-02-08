@@ -22,17 +22,11 @@ impl Fixer for FieldRenameFixer {
         }
     }
 
-    fn fix_type(
-        &self,
-        schema: &mut super::Schema,
-        type_name: super::TypeReference,
-        mut input: Type,
-    ) {
-        if schema.find_type(&self.targetting).unwrap() == input {
-            let Type::Map(map) = &mut input else { return };
+    fn fix_type(&self, type_name: &TypeReference, input: &mut Type) {
+        if *type_name == self.targetting {
+            let Type::Map(map) = input else { return };
             let old_type = map.remove_field(&self.old_name).unwrap();
             map.insert_field(&self.new_name, old_type);
-            schema.insert_type_ref(&type_name, input);
         }
     }
 }

@@ -10,5 +10,5 @@ use crate::serialization::CodecOps;
 
 pub trait Fixer {
     fn fix_data<T, O: CodecOps<T>>(&self, data: Dynamic<'_, T, O>, ops: O);
-    fn fix_type(&self, schema: &mut Schema, type_name: TypeReference, input: Type);
+    fn fix_type(&self, type_name: &TypeReference, input: &mut Type);
 }

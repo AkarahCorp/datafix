@@ -1,12 +1,13 @@
 use alloc::{
+    boxed::Box,
     collections::btree_map::BTreeMap,
-    rc::Rc,
     string::{String, ToString},
     vec::Vec,
 };
 
 use super::{Fixer, Type};
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct TypeReference {
     pub(crate) name: String,
 }
@@ -20,7 +21,7 @@ impl TypeReference {
 pub struct Schema {
     types: BTreeMap<String, Type>,
     version: u32,
-    parent: Option<Rc<Schema>>,
+    parent: Option<Box<Schema>>,
 }
 
 impl Schema {
@@ -36,7 +37,7 @@ impl Schema {
         Schema {
             types: BTreeMap::new(),
             version: parent.version.clone() + 1,
-            parent: Some(Rc::new(parent)),
+            parent: Some(Box::new(parent)),
         }
     }
 
@@ -44,12 +45,17 @@ impl Schema {
         let mut schema = Schema {
             types: BTreeMap::new(),
             version: self.version.clone() + 1,
-            parent: Some(Rc::new(self)),
+            parent: Some(Box::new(self)),
         };
 
         for tyr in schema.find_all_types() {
             let ty = schema.find_type(&tyr).unwrap();
-            fixer.fix_type(&mut schema, tyr, ty);
+            let mut diff_ty = ty.clone();
+            fixer.fix_type(&tyr, &mut diff_ty);
+
+            if ty != diff_ty {
+                schema.insert_type_ref(&tyr, diff_ty);
+            }
         }
 
         schema
@@ -66,14 +72,20 @@ impl Schema {
     pub fn find_type(&self, name: &TypeReference) -> Option<Type> {
         match self.types.get(&name.name) {
             Some(value) => Some(value.clone()),
-            None => self.parent.clone()?.find_latest_type(&name.name),
+            None => match &self.parent {
+                Some(parent) => parent.find_latest_type(&name.name),
+                None => None,
+            },
         }
     }
 
     pub fn find_latest_type(&self, name: &str) -> Option<Type> {
         match self.types.get(name) {
             Some(value) => Some(value.clone()),
-            None => self.parent.clone()?.find_latest_type(name),
+            None => match &self.parent {
+                Some(parent) => parent.find_latest_type(&name),
+                None => None,
+            },
         }
     }
 
@@ -86,6 +98,7 @@ impl Schema {
         if let Some(parent) = &self.parent {
             vec.extend(parent.find_all_types());
         }
+        vec.dedup();
         vec
     }
 }
