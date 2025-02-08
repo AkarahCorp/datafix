@@ -61,6 +61,13 @@ impl TypeMap {
         TypeMap { map: None }
     }
 
+    pub fn remove_field(&mut self, key: &str) -> Option<Type> {
+        match &mut self.map {
+            Some(map) => map.remove(key),
+            None => None,
+        }
+    }
+
     pub fn insert_field(&mut self, key: &str, value: Type) {
         match &mut self.map {
             Some(map) => {
