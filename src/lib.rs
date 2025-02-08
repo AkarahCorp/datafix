@@ -41,8 +41,6 @@
 
 extern crate alloc;
 
-/// The module for all things related to fixing up data.
-pub mod fixers;
 /// The module that contains `DataError`, the error value returned by methods related to this crate when things go wrong.
 pub mod result;
 /// The module responsible for transforming data between different types and representations.

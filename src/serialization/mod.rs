@@ -10,7 +10,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
 
-use crate::{fixers::Type, result::DataResult};
+use crate::result::DataResult;
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -34,7 +34,6 @@ where
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T>;
-    fn get_type(&self) -> Type;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:

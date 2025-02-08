@@ -6,7 +6,6 @@ use alloc::{
 };
 
 use crate::{
-    fixers::{Type, TypeMap},
     result::{DataError, DataResult},
     serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView},
 };
@@ -20,10 +19,6 @@ impl Codec<f64> for F64Codec {
 
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<f64> {
         ops.get_number(value)
-    }
-
-    fn get_type(&self) -> crate::fixers::Type {
-        Type::number()
     }
 }
 
@@ -43,10 +38,6 @@ impl Codec<String> for StringCodec {
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<String> {
         ops.get_string(value)
     }
-
-    fn get_type(&self) -> Type {
-        Type::string()
-    }
 }
 
 impl DefaultCodec for String {
@@ -64,10 +55,6 @@ impl Codec<bool> for BoolCodec {
 
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<bool> {
         ops.get_boolean(value)
-    }
-
-    fn get_type(&self) -> Type {
-        Type::boolean()
     }
 }
 
@@ -123,10 +110,6 @@ impl<N: F64Convertable> Codec<N> for NumberCodec<N> {
     fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<N> {
         Ok(N::from_f64(ops.get_number(value)?))
     }
-
-    fn get_type(&self) -> Type {
-        Type::number()
-    }
 }
 
 pub(crate) struct ListCodec<T, C: Codec<T>> {
@@ -150,10 +133,6 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
             vec.push(self.inner.decode(ops, &mut item)?);
         }
         Ok(vec)
-    }
-
-    fn get_type(&self) -> Type {
-        Type::array(self.inner.get_type())
     }
 }
 
@@ -182,10 +161,6 @@ where
     fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &mut OpsType) -> DataResult<U> {
         Ok((self.f)(&self.inner.decode(ops, value)?))
     }
-
-    fn get_type(&self) -> Type {
-        self.inner.get_type()
-    }
 }
 
 pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
@@ -211,13 +186,6 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
         let mut right = obj.get("right")?;
         let p2 = self.right.decode(ops, &mut right)?;
         Ok((p1, p2))
-    }
-
-    fn get_type(&self) -> Type {
-        let mut map = TypeMap::new();
-        map.insert_field("left", self.left.get_type());
-        map.insert_field("right", self.right.get_type());
-        Type::map(map)
     }
 }
 
@@ -251,9 +219,5 @@ impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for Bounded
                 self.range.end_bound()
             )))
         }
-    }
-
-    fn get_type(&self) -> Type {
-        self.codec.get_type()
     }
 }
