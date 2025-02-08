@@ -42,7 +42,7 @@ mod tests {
     #[test]
     fn test_field_rename_type() {
         let mut schema = Schema::new_root();
-        schema.insert_type(
+        schema.insert_type_by_name(
             "SomeObject",
             Type::map({
                 let mut map = TypeMap::new();
@@ -58,7 +58,7 @@ mod tests {
             },
         });
         assert_eq!(
-            schema.find_latest_type("SomeObject"),
+            schema.find_type_by_name("SomeObject"),
             Some(Type::map({
                 let mut map = TypeMap::new();
                 map.insert_field("user_number", Type::number());

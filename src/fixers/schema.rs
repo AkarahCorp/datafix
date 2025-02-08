@@ -54,36 +54,36 @@ impl Schema {
             fixer.fix_type(&tyr, &mut diff_ty);
 
             if ty != diff_ty {
-                schema.insert_type_ref(&tyr, diff_ty);
+                schema.insert_type(&tyr, diff_ty);
             }
         }
 
         schema
     }
 
-    pub fn insert_type(&mut self, name: &str, ty: Type) {
-        self.types.insert(name.to_string(), ty);
+    pub fn insert_type(&mut self, reference: &TypeReference, ty: Type) {
+        self.types.insert(reference.name.clone(), ty);
     }
 
-    pub fn insert_type_ref(&mut self, reference: &TypeReference, ty: Type) {
-        self.types.insert(reference.name.clone(), ty);
+    pub fn insert_type_by_name(&mut self, name: &str, ty: Type) {
+        self.types.insert(name.to_string(), ty);
     }
 
     pub fn find_type(&self, name: &TypeReference) -> Option<Type> {
         match self.types.get(&name.name) {
             Some(value) => Some(value.clone()),
             None => match &self.parent {
-                Some(parent) => parent.find_latest_type(&name.name),
+                Some(parent) => parent.find_type_by_name(&name.name),
                 None => None,
             },
         }
     }
 
-    pub fn find_latest_type(&self, name: &str) -> Option<Type> {
+    pub fn find_type_by_name(&self, name: &str) -> Option<Type> {
         match self.types.get(name) {
             Some(value) => Some(value.clone()),
             None => match &self.parent {
-                Some(parent) => parent.find_latest_type(&name),
+                Some(parent) => parent.find_type_by_name(&name),
                 None => None,
             },
         }
@@ -112,10 +112,13 @@ pub mod tests {
     #[test]
     pub fn type_finds() {
         let mut schema = Schema::new_root();
-        schema.insert_type("TestType", Type::number());
+        schema.insert_type_by_name("TestType", Type::number());
         let mut schema = Schema::new(schema);
-        schema.insert_type("TestType", Type::string());
+        schema.insert_type_by_name("TestType", Type::string());
 
-        assert_eq!(schema.find_latest_type("TestType").unwrap(), Type::string());
+        assert_eq!(
+            schema.find_type_by_name("TestType").unwrap(),
+            Type::string()
+        );
     }
 }
