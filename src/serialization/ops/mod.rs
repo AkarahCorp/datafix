@@ -49,7 +49,7 @@ pub trait CodecOps<T>: Clone {
         &self,
         pairs: impl IntoIterator<Item = Option<DataResult<(String, T)>>>,
     ) -> DataResult<T> {
-        let iter1 = pairs.into_iter().filter_map(|x| x).filter_map(|x| x.ok());
+        let iter1 = pairs.into_iter().flatten().filter_map(|x| x.ok());
 
         Ok(self.create_map(iter1))
     }

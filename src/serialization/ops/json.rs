@@ -14,7 +14,7 @@ pub struct JsonOps;
 
 impl CodecOps<JsonValue> for JsonOps {
     fn create_number(&self, value: &f64) -> JsonValue {
-        JsonValue::Number(Number::from(value.clone()))
+        JsonValue::Number(Number::from(*value))
     }
 
     fn create_string(&self, value: &str) -> JsonValue {
@@ -22,12 +22,12 @@ impl CodecOps<JsonValue> for JsonOps {
     }
 
     fn create_boolean(&self, value: &bool) -> JsonValue {
-        JsonValue::Boolean(value.clone())
+        JsonValue::Boolean(*value)
     }
 
     fn create_list(&self, value: impl IntoIterator<Item = JsonValue>) -> JsonValue {
         let iter = value.into_iter();
-        let mut vec = Vec::with_capacity(iter.size_hint().1.unwrap_or_else(|| 0));
+        let mut vec = Vec::with_capacity(iter.size_hint().1.unwrap_or(0));
         for element in iter {
             vec.push(element.clone());
         }
@@ -39,7 +39,7 @@ impl CodecOps<JsonValue> for JsonOps {
         pairs: impl IntoIterator<Item = (alloc::string::String, JsonValue)>,
     ) -> JsonValue {
         let iter = pairs.into_iter();
-        let mut obj = Object::with_capacity(iter.size_hint().1.unwrap_or_else(|| 0));
+        let mut obj = Object::with_capacity(iter.size_hint().1.unwrap_or(0));
         for (key, element) in iter {
             obj.insert(&key, element.clone());
         }
@@ -52,7 +52,7 @@ impl CodecOps<JsonValue> for JsonOps {
 
     fn get_number(&self, value: &JsonValue) -> crate::result::DataResult<f64> {
         match value {
-            JsonValue::Number(number) => Ok(number.clone().into()),
+            JsonValue::Number(number) => Ok((*number).into()),
             _ => Err(DataError::unexpected_type("number")),
         }
     }
@@ -66,7 +66,7 @@ impl CodecOps<JsonValue> for JsonOps {
 
     fn get_boolean(&self, value: &JsonValue) -> crate::result::DataResult<bool> {
         match value {
-            JsonValue::Boolean(boolean) => Ok(boolean.clone()),
+            JsonValue::Boolean(boolean) => Ok(*boolean),
             _ => Err(DataError::unexpected_type("boolean")),
         }
     }
@@ -95,10 +95,10 @@ impl CodecOps<JsonValue> for JsonOps {
         let JsonValue::Object(object) = value else {
             return Err(DataError::unexpected_type("object"));
         };
-        if object.len() == 0 {
-            return Ok(());
+        if object.is_empty() {
+            Ok(())
         } else {
-            return Err(DataError::new_custom("object must have 0 fields"));
+            Err(DataError::new_custom("object must have 0 fields"))
         }
     }
 }
@@ -107,7 +107,7 @@ struct JsonObjectView<'a> {
     inner: &'a mut JsonValue,
 }
 
-impl<'a> MapView<JsonValue> for JsonObjectView<'a> {
+impl MapView<JsonValue> for JsonObjectView<'_> {
     fn get(&mut self, name: &str) -> crate::result::DataResult<&mut JsonValue> {
         let JsonValue::Object(object) = self.inner else {
             return Err(DataError::unexpected_type("object"));
@@ -145,7 +145,7 @@ struct JsonListView<'a> {
     inner: &'a mut JsonValue,
 }
 
-impl<'a> ListView<JsonValue> for JsonListView<'a> {
+impl ListView<JsonValue> for JsonListView<'_> {
     fn append(&mut self, value: JsonValue) {
         if let JsonValue::Array(array) = self.inner {
             array.push(value);

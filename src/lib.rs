@@ -1,15 +1,19 @@
+#![allow(clippy::type_complexity)]
+
 //! `datafix` serializes and deserializes data of different versions.
 //!
 //! This crate does two major things:
 //!
-//! * **Serialization and deserialization** Datafixer provides a built-in serialization method [`serialization::Codec`].
-//! This is a different approach from Serde as Serde uses a recursive visitor approach through macros, while Datafixer
-//! uses data & traits to generate the code needed.
+//! * **Serialization and deserialization**
+//!   Datafixer provides a built-in serialization method [`serialization::Codec`].
+//!   This is a different approach from Serde as Serde uses a recursive visitor approach through macros,
+//!   while Datafixer uses data & traits to generate the code needed.
 //!
-//! * **Data transformations** `todo!()`
+//! * **Data transformations**
+//!   `todo!()`
+//!
 //!
 //! For example, let's say you're developing a text editor and want to provide a configuration.
-//!
 //! ```rs
 //! struct Config {
 //!     font_size: i32,

@@ -13,6 +13,12 @@ pub struct MapCodecBuilder<C, OT, O: CodecOps<OT>> {
 }
 
 #[doc(hidden)]
+impl<OT, O: CodecOps<OT>> Default for MapCodecBuilder<UnitCodec, OT, O> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<OT, O: CodecOps<OT>> MapCodecBuilder<UnitCodec, OT, O> {
     pub fn new() -> MapCodecBuilder<UnitCodec, OT, O> {
         MapCodecBuilder {

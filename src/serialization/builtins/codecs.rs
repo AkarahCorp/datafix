@@ -125,7 +125,7 @@ impl<T, C: Codec<T, U, O>, U, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<
         for element in value {
             list.push(self.inner.encode(ops, element)?);
         }
-        Ok(ops.create_list(list.into_iter()))
+        Ok(ops.create_list(list))
     }
 
     fn decode(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
@@ -175,21 +175,18 @@ impl<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> Codec<
     for PairCodec<L, R, Lc, Rc, OT, O>
 {
     fn encode(&self, ops: &O, value: &(L, R)) -> DataResult<OT> {
-        Ok(ops.create_map(
-            [
-                ("left".to_string(), self.left.encode(ops, &value.0)?),
-                ("right".to_string(), self.right.encode(ops, &value.1)?),
-            ]
-            .into_iter(),
-        ))
+        Ok(ops.create_map([
+            ("left".to_string(), self.left.encode(ops, &value.0)?),
+            ("right".to_string(), self.right.encode(ops, &value.1)?),
+        ]))
     }
 
     fn decode(&self, ops: &O, value: &mut OT) -> DataResult<(L, R)> {
         let mut obj = ops.get_map(value)?;
-        let mut left = obj.get("left")?;
-        let p1 = self.left.decode(ops, &mut left)?;
-        let mut right = obj.get("right")?;
-        let p2 = self.right.decode(ops, &mut right)?;
+        let left = obj.get("left")?;
+        let p1 = self.left.decode(ops, left)?;
+        let right = obj.get("right")?;
+        let p2 = self.right.decode(ops, right)?;
         Ok((p1, p2))
     }
 }
