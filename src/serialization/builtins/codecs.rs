@@ -3,6 +3,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use alloc::{
     boxed::Box,
     string::{String, ToString},
+    sync::Arc,
     vec::Vec,
 };
 
@@ -248,14 +249,39 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
     }
 }
 
+pub struct ArcCodec<T, OT, O: CodecOps<OT>> {
+    pub(crate) codec: Arc<dyn Codec<T, OT, O>>,
+}
+
+impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
+    fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
+        self.codec.as_ref().encode(ops, value)
+    }
+
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+        self.codec.as_ref().decode(ops, value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::serialization::{Codec, CodecAdapters, DefaultCodec, json::JsonOps};
 
     #[test]
-    fn dynamic_codec_works() {
+    fn dynamic_codec() {
         let value = 10.0;
         let mut encoded = f64::codec().dynamic().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec()
+            .dynamic()
+            .decode(&JsonOps, &mut encoded)
+            .unwrap();
+        assert_eq!(decoded, value);
+    }
+
+    #[test]
+    fn arc_codec() {
+        let value = 10.0;
+        let mut encoded = f64::codec().arc().encode(&JsonOps, &value).unwrap();
         let decoded = f64::codec()
             .dynamic()
             .decode(&JsonOps, &mut encoded)

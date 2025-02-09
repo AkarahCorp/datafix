@@ -1,9 +1,9 @@
 mod builtins;
 mod ops;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use builtins::{
-    codecs::{BoundedCodec, DynamicCodec, ListCodec, PairCodec, XMapCodec},
+    codecs::{ArcCodec, BoundedCodec, DynamicCodec, ListCodec, PairCodec, XMapCodec},
     records::{OptionalField, RecordField},
 };
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
@@ -119,6 +119,15 @@ where
     {
         DynamicCodec {
             codec: Box::new(self),
+        }
+    }
+
+    fn arc(self) -> ArcCodec<T, OT, O>
+    where
+        Self: 'static,
+    {
+        ArcCodec {
+            codec: Arc::new(self),
         }
     }
 }
