@@ -1,6 +1,7 @@
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use alloc::{
+    boxed::Box,
     string::{String, ToString},
     vec::Vec,
 };
@@ -230,5 +231,35 @@ impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT, O: CodecO
                 self.range.end_bound()
             )))
         }
+    }
+}
+
+pub struct DynamicCodec<T, OT, O: CodecOps<OT>> {
+    pub(crate) codec: Box<dyn Codec<T, OT, O>>,
+}
+
+impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
+    fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
+        self.codec.as_ref().encode(ops, value)
+    }
+
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+        self.codec.as_ref().decode(ops, value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::serialization::{Codec, CodecAdapters, DefaultCodec, json::JsonOps};
+
+    #[test]
+    fn dynamic_codec_works() {
+        let value = 10.0;
+        let mut encoded = f64::codec().dynamic().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec()
+            .dynamic()
+            .decode(&JsonOps, &mut encoded)
+            .unwrap();
+        assert_eq!(decoded, value);
     }
 }

@@ -1,9 +1,9 @@
 mod builtins;
 mod ops;
 
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use builtins::{
-    codecs::{BoundedCodec, ListCodec, PairCodec, XMapCodec},
+    codecs::{BoundedCodec, DynamicCodec, ListCodec, PairCodec, XMapCodec},
     records::{OptionalField, RecordField},
 };
 use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
@@ -112,7 +112,18 @@ where
             _phantom: PhantomData,
         }
     }
+
+    fn dynamic(self) -> DynamicCodec<T, OT, O>
+    where
+        Self: 'static,
+    {
+        DynamicCodec {
+            codec: Box::new(self),
+        }
+    }
 }
+
+impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> CodecAdapters<T, OT, O> for C {}
 
 /// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible.
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.
