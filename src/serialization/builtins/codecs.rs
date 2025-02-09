@@ -12,54 +12,54 @@ use crate::{
 
 pub(crate) struct F64Codec;
 
-impl Codec<f64> for F64Codec {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &f64) -> DataResult<U> {
+impl<OT, O: CodecOps<OT>> Codec<f64, OT, O> for F64Codec {
+    fn encode(&self, ops: &O, value: &f64) -> DataResult<OT> {
         Ok(ops.create_number(value))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<f64> {
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<f64> {
         ops.get_number(value)
     }
 }
 
-impl DefaultCodec for f64 {
-    fn codec() -> impl Codec<Self> {
+impl<U, O: CodecOps<U>> DefaultCodec<U, O> for f64 {
+    fn codec() -> impl Codec<Self, U, O> {
         F64Codec
     }
 }
 
 pub(crate) struct StringCodec;
 
-impl Codec<String> for StringCodec {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &String) -> DataResult<U> {
+impl<U, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
+    fn encode(&self, ops: &O, value: &String) -> DataResult<U> {
         Ok(ops.create_string(value))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<String> {
+    fn decode(&self, ops: &O, value: &mut U) -> DataResult<String> {
         ops.get_string(value)
     }
 }
 
-impl DefaultCodec for String {
-    fn codec() -> impl Codec<Self> {
+impl<U, O: CodecOps<U>> DefaultCodec<U, O> for String {
+    fn codec() -> impl Codec<Self, U, O> {
         StringCodec
     }
 }
 
 pub(crate) struct BoolCodec;
 
-impl Codec<bool> for BoolCodec {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &bool) -> DataResult<U> {
+impl<U, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
+    fn encode(&self, ops: &O, value: &bool) -> DataResult<U> {
         Ok(ops.create_boolean(value))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<bool> {
+    fn decode(&self, ops: &O, value: &mut U) -> DataResult<bool> {
         ops.get_boolean(value)
     }
 }
 
-impl DefaultCodec for bool {
-    fn codec() -> impl Codec<Self> {
+impl<U, O: CodecOps<U>> DefaultCodec<U, O> for bool {
+    fn codec() -> impl Codec<Self, U, O> {
         BoolCodec
     }
 }
@@ -85,8 +85,8 @@ macro_rules! impl_f64_convertable {
                 }
             }
 
-            impl DefaultCodec for $t {
-                fn codec() -> impl Codec<Self> {
+            impl<U, O: CodecOps<U>> DefaultCodec<U, O> for $t {
+                fn codec() -> impl Codec<Self, U, O> {
                     NumberCodec {
                         _phantom: PhantomData,
                     }
@@ -98,27 +98,27 @@ macro_rules! impl_f64_convertable {
 
 impl_f64_convertable! { i8, i16, i32, i64, u8, u16, u32, u64, f32, usize, isize }
 
-pub(crate) struct NumberCodec<N: F64Convertable> {
-    _phantom: PhantomData<fn() -> N>,
+pub(crate) struct NumberCodec<N: F64Convertable, U, O: CodecOps<U>> {
+    _phantom: PhantomData<fn() -> (N, U, O)>,
 }
 
-impl<N: F64Convertable> Codec<N> for NumberCodec<N> {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &N) -> DataResult<U> {
+impl<U, O: CodecOps<U>, N: F64Convertable> Codec<N, U, O> for NumberCodec<N, U, O> {
+    fn encode(&self, ops: &O, value: &N) -> DataResult<U> {
         Ok(ops.create_number(&value.into_f64()))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<N> {
+    fn decode(&self, ops: &O, value: &mut U) -> DataResult<N> {
         Ok(N::from_f64(ops.get_number(value)?))
     }
 }
 
-pub(crate) struct ListCodec<T, C: Codec<T>> {
+pub(crate) struct ListCodec<T, C: Codec<T, U, O>, U, O: CodecOps<U>> {
     pub(crate) inner: C,
-    pub(crate) _phantom: PhantomData<T>,
+    pub(crate) _phantom: PhantomData<fn() -> (T, U, O)>,
 }
 
-impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Vec<T>) -> DataResult<U> {
+impl<T, C: Codec<T, U, O>, U, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<T, C, U, O> {
+    fn encode(&self, ops: &O, value: &Vec<T>) -> DataResult<U> {
         let mut list = Vec::new();
         for element in value {
             list.push(self.inner.encode(ops, element)?);
@@ -126,7 +126,7 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
         Ok(ops.create_list(list.into_iter()))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
+    fn decode(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
         for mut item in list.into_iter() {
@@ -136,40 +136,43 @@ impl<T, C: Codec<T>> Codec<Vec<T>> for ListCodec<T, C> {
     }
 }
 
-pub(crate) struct XMapCodec<T, U, C, F, G>
+pub(crate) struct XMapCodec<OLT, NT, C, F1, F2, U, O: CodecOps<U>>
 where
-    C: Codec<T>,
-    F: Fn(&T) -> U,
-    G: Fn(&U) -> T,
+    C: Codec<OLT, U, O>,
+    F1: Fn(&OLT) -> NT,
+    F2: Fn(&NT) -> OLT,
 {
     pub(crate) inner: C,
-    pub(crate) f: F,
-    pub(crate) g: G,
-    pub(crate) _phantom: PhantomData<fn() -> (T, U)>,
+    pub(crate) f1: F1,
+    pub(crate) f2: F2,
+    pub(crate) _phantom: PhantomData<fn() -> (OLT, NT, U, O)>,
 }
 
-impl<T, U, C, F, G> Codec<U> for XMapCodec<T, U, C, F, G>
+impl<OLT, NT, C, F1, F2, OT, O: CodecOps<OT>> Codec<NT, OT, O>
+    for XMapCodec<OLT, NT, C, F1, F2, OT, O>
 where
-    C: Codec<T>,
-    F: Fn(&T) -> U,
-    G: Fn(&U) -> T,
+    C: Codec<OLT, OT, O>,
+    F1: Fn(&OLT) -> NT,
+    F2: Fn(&NT) -> OLT,
 {
-    fn encode<U2, O: CodecOps<U2>>(&self, ops: &O, value: &U) -> DataResult<U2> {
-        self.inner.encode(ops, &(self.g)(value))
+    fn encode(&self, ops: &O, value: &NT) -> DataResult<OT> {
+        self.inner.encode(ops, &(self.f2)(value))
     }
 
-    fn decode<OpsType, O: CodecOps<OpsType>>(&self, ops: &O, value: &mut OpsType) -> DataResult<U> {
-        Ok((self.f)(&self.inner.decode(ops, value)?))
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<NT> {
+        Ok((self.f1)(&self.inner.decode(ops, value)?))
     }
 }
 
-pub(crate) struct PairCodec<L, R, Lc: Codec<L>, Rc: Codec<R>> {
+pub(crate) struct PairCodec<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> {
     pub(crate) left: Lc,
     pub(crate) right: Rc,
-    pub(crate) _phantom: PhantomData<fn() -> (L, R)>,
+    pub(crate) _phantom: PhantomData<fn() -> (L, R, OT, O)>,
 }
-impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc> {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &(L, R)) -> DataResult<U> {
+impl<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> Codec<(L, R), OT, O>
+    for PairCodec<L, R, Lc, Rc, OT, O>
+{
+    fn encode(&self, ops: &O, value: &(L, R)) -> DataResult<OT> {
         Ok(ops.create_map(
             [
                 ("left".to_string(), self.left.encode(ops, &value.0)?),
@@ -179,7 +182,7 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
         ))
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<(L, R)> {
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<(L, R)> {
         let mut obj = ops.get_map(value)?;
         let mut left = obj.get("left")?;
         let p1 = self.left.decode(ops, &mut left)?;
@@ -189,14 +192,22 @@ impl<L, R, Lc: Codec<L>, Rc: Codec<R>> Codec<(L, R)> for PairCodec<L, R, Lc, Rc>
     }
 }
 
-pub(crate) struct BoundedCodec<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> {
+pub(crate) struct BoundedCodec<
+    T: PartialOrd + Debug,
+    C: Codec<T, OT, O>,
+    R: RangeBounds<T>,
+    OT,
+    O: CodecOps<OT>,
+> {
     pub(crate) codec: C,
     pub(crate) range: R,
-    pub(crate) _phantom: PhantomData<fn() -> T>,
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for BoundedCodec<T, C, R> {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U> {
+impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT, O: CodecOps<OT>>
+    Codec<T, OT, O> for BoundedCodec<T, C, R, OT, O>
+{
+    fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         if !self.range.contains(value) {
             Err(DataError::new_custom(&alloc::format!(
                 "value must be in bounds of {:?} to {:?}",
@@ -208,7 +219,7 @@ impl<T: PartialOrd + Debug, C: Codec<T>, R: RangeBounds<T>> Codec<T> for Bounded
         }
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
         let decoded = self.codec.decode(ops, value)?;
         if self.range.contains(&decoded) {
             Ok(decoded)

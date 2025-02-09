@@ -6,31 +6,23 @@ use crate::{
 };
 use alloc::string::String;
 
-pub trait MapFieldGetter<T, C: Codec<T>, Struct, Rt> {
-    fn encode_into<U, O: CodecOps<U>>(
-        &self,
-        ops: &O,
-        value: &Struct,
-    ) -> Option<DataResult<(String, U)>>;
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Rt>;
+pub trait MapFieldGetter<T, C: Codec<T, OT, O>, Struct, Rt, OT, O: CodecOps<OT>> {
+    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>>;
+    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
 }
 
-pub struct OptionalField<T, C: Codec<T>, Struct> {
+pub struct OptionalField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &Option<T>,
     pub(crate) codec: C,
-    pub(crate) _phantom: PhantomData<fn() -> T>,
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, Option<T>>
-    for OptionalField<T, C, Struct>
+impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
+    MapFieldGetter<T, C, Struct, Option<T>, OT, O> for OptionalField<T, C, Struct, OT, O>
 {
-    fn encode_into<U, O: CodecOps<U>>(
-        &self,
-        ops: &O,
-        value: &Struct,
-    ) -> Option<DataResult<(String, U)>> {
+    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>> {
         let value = (self.getter)(value);
         match value {
             Some(value) => {
@@ -45,7 +37,7 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, Option<T>>
         }
     }
 
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Option<T>> {
+    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<Option<T>> {
         let mut obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
             Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
@@ -58,15 +50,17 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, Option<T>>
     }
 }
 
-pub struct RecordField<T, C: Codec<T>, Struct> {
+pub struct RecordField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &T,
     pub(crate) codec: C,
-    pub(crate) _phantom: PhantomData<fn() -> T>,
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, T> for RecordField<T, C, Struct> {
-    fn get_field<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T> {
+impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> MapFieldGetter<T, C, Struct, T, OT, O>
+    for RecordField<T, C, Struct, OT, O>
+{
+    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<T> {
         let mut obj = ops.get_map(value)?;
         let field = obj.get(&self.field_name)?;
         self.codec.decode(ops, field)
@@ -76,11 +70,7 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, T> for RecordField<T, 
         &self.field_name
     }
 
-    fn encode_into<U, O: CodecOps<U>>(
-        &self,
-        ops: &O,
-        value: &Struct,
-    ) -> Option<DataResult<(String, U)>> {
+    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>> {
         let e = self.codec.encode(ops, (self.getter)(value));
         let e = match e {
             Ok(v) => v,
@@ -92,12 +82,12 @@ impl<T, C: Codec<T>, Struct> MapFieldGetter<T, C, Struct, T> for RecordField<T, 
 
 pub struct UnitCodec {}
 
-impl Codec<()> for UnitCodec {
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, _value: &()) -> DataResult<U> {
+impl<OT, O: CodecOps<OT>> Codec<(), OT, O> for UnitCodec {
+    fn encode(&self, ops: &O, _value: &()) -> DataResult<OT> {
         Ok(ops.create_unit())
     }
 
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<()> {
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<()> {
         ops.get_unit(value)
     }
 }
@@ -110,31 +100,31 @@ macro_rules! record_codec {
     ) => {
         pub struct $struct_name<$(
                 $name,
-                $codec: Codec<$name>,
+                $codec: Codec<$name, OT, O>,
                 $field_return_type,
-                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
+                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
             ),*,
-            Struct
+            Struct, OT, O: CodecOps<OT>
         > {
             $(pub(crate) $field: $field_type),*,
             pub(crate) into_struct: OnceCell<fn($($field_return_type),*) -> Struct>,
-            pub(crate) _phantom: PhantomData<($($name, $codec, $field_return_type),*,)>
+            pub(crate) _phantom: PhantomData<($($name, $codec, $field_return_type),*, OT, O)>
         }
 
         #[doc(hidden)]
         impl<Struct, $(
             $name,
-            $codec: Codec<$name>,
+            $codec: Codec<$name, OT, O>,
             $field_return_type,
-            $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
-        ),*> Codec<Struct> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct> {
-            fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &Struct) -> DataResult<U> {
+            $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
+        ),*, OT, O: CodecOps<OT>> Codec<Struct, OT, O> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct, OT, O> {
+            fn encode(&self, ops: &O, value: &Struct) -> DataResult<OT> {
                 ops.create_map_special([
                     $(self.$field.encode_into(ops, value),)*
                 ])
             }
 
-            fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<Struct> {
+            fn decode(&self, ops: &O, value: &mut OT) -> DataResult<Struct> {
                 $(
                     let $field: $field_return_type = self.$field.get_field(ops, value)?;
                 )*

@@ -1,37 +1,43 @@
 use core::{cell::OnceCell, marker::PhantomData};
 
-use crate::{serialization::builtins::records::*, serialization::Codec};
+use crate::{
+    serialization::builtins::records::*,
+    serialization::{Codec, CodecOps},
+};
 
 use super::records::UnitCodec;
 
-pub struct MapCodecBuilder<C> {
+pub struct MapCodecBuilder<C, OT, O: CodecOps<OT>> {
     pub(crate) codec: C,
+    pub(crate) _phantom: PhantomData<fn() -> (OT, O)>,
 }
 
 #[doc(hidden)]
-impl MapCodecBuilder<UnitCodec> {
-    pub fn new() -> MapCodecBuilder<UnitCodec> {
+impl<OT, O: CodecOps<OT>> MapCodecBuilder<UnitCodec, OT, O> {
+    pub fn new() -> MapCodecBuilder<UnitCodec, OT, O> {
         MapCodecBuilder {
             codec: UnitCodec {},
+            _phantom: PhantomData,
         }
     }
 
     pub fn field<
         P1,
-        P1C: Codec<P1>,
+        P1C: Codec<P1, OT, O>,
         P1R,
-        NxtField: MapFieldGetter<P1, P1C, Struct, P1R>,
+        NxtField: MapFieldGetter<P1, P1C, Struct, P1R, OT, O>,
         Struct,
     >(
         self,
         field: NxtField,
-    ) -> MapCodecBuilder<MapCodec1<P1, P1C, P1R, NxtField, Struct>> {
+    ) -> MapCodecBuilder<MapCodec1<P1, P1C, P1R, NxtField, Struct, OT, O>, OT, O> {
         MapCodecBuilder {
             codec: MapCodec1 {
                 codec1: field,
                 into_struct: OnceCell::new(),
                 _phantom: PhantomData,
             },
+            _phantom: PhantomData,
         }
     }
 }
@@ -52,11 +58,11 @@ macro_rules! impl_record_codec_builder {
         impl<
             $(
                 $name,
-                $codec: Codec<$name>,
+                $codec: Codec<$name, OT, O>,
                 $field_return_type,
-                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>
+                $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
             ),*
-            , Struct
+            , OT, O: CodecOps<OT>, Struct
         > MapCodecBuilder<
             $type<
                 $(
@@ -65,26 +71,26 @@ macro_rules! impl_record_codec_builder {
                     $field_return_type,
                     $field_type
                 ),*
-                , Struct
-            >
+                , Struct, OT, O
+            >, OT, O
         > {
             pub fn field<
                 $next_name,
-                $next_codec: Codec<$next_name>,
+                $next_codec: Codec<$next_name, OT, O>,
                 $next_field_return_type,
                 NxtField: MapFieldGetter<
                     $next_name,
                     $next_codec,
                     Struct,
-                    $next_field_return_type>>
+                    $next_field_return_type, OT, O>>
             (
                 self,
                 field: NxtField
             ) -> MapCodecBuilder<
                 $next_type<
                     $($name, $codec, $field_return_type, $field_type),*,
-                    $next_name, $next_codec, $next_field_return_type, NxtField, Struct
-                >
+                    $next_name, $next_codec, $next_field_return_type, NxtField, Struct, OT, O
+                >, OT, O
             > {
                 MapCodecBuilder {
                     codec: $next_type {
@@ -93,10 +99,11 @@ macro_rules! impl_record_codec_builder {
                         into_struct: OnceCell::new(),
                         _phantom: PhantomData,
                     },
+                    _phantom: PhantomData
                 }
             }
 
-            pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct> {
+            pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct, OT, O> {
                 self.codec.into_struct.set(into_struct).unwrap();
                 self.codec
             }
@@ -110,9 +117,9 @@ macro_rules! impl_record_codec_builder_last {
         fields: { $($field:ident: $name:ident[$codec:ident; $field_type:ident; $field_return_type:ident]),* }
     ) => {
         #[doc(hidden)]
-        impl<$($name, $codec: Codec<$name>, $field_return_type, $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type>),*, Struct>
-            MapCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct>> {
-            pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct> {
+        impl<$($name, $codec: Codec<$name, OT, O>, $field_return_type, $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>),*, Struct, OT, O: CodecOps<OT>>
+            MapCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct, OT, O>, OT, O> {
+            pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct, OT, O> {
                 self.codec.into_struct.set(into_struct).unwrap();
                 self.codec
             }

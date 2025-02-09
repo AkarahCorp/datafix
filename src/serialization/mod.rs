@@ -24,32 +24,29 @@ pub use builtins::record_builder::MapCodecBuilder;
 /// [`CodecAdapter`]: [`serialization::CodecAdapter`]
 /// [`CodecAdapter::xmap`]: [`serialization::CodecAdapter::xmap`]
 /// [`CodecAdapter::list_of`]: [`serialization::CodecAdapter::list_of`]
-pub trait Codec<T>
-where
-    Self: Sized,
-{
+pub trait Codec<Type, OpsType, Ops: CodecOps<OpsType>> {
     /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
-    fn encode<U, O: CodecOps<U>>(&self, ops: &O, value: &T) -> DataResult<U>;
+    fn encode(&self, ops: &Ops, value: &Type) -> DataResult<OpsType>;
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn decode<U, O: CodecOps<U>>(&self, ops: &O, value: &mut U) -> DataResult<T>;
+    fn decode(&self, ops: &Ops, value: &mut OpsType) -> DataResult<Type>;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
 /// - Turn into record fields
 /// - Convert between types
 /// - Have a list codec that contains the type of the provided codec
-pub trait CodecAdapters<T>
+pub trait CodecAdapters<T, OT, O: CodecOps<OT>>
 where
-    Self: Sized + Codec<T>,
+    Self: Sized + Codec<T, OT, O>,
 {
     /// Returns a codec of this type that is intended for a field of a record.
     fn field_of<Struct>(
         self,
         name: impl Into<String>,
         getter: fn(&Struct) -> &T,
-    ) -> RecordField<T, Self, Struct> {
+    ) -> RecordField<T, Self, Struct, OT, O> {
         RecordField {
             field_name: name.into(),
             getter,
@@ -63,7 +60,7 @@ where
         self,
         name: impl Into<String>,
         getter: fn(&Struct) -> &Option<T>,
-    ) -> OptionalField<T, Self, Struct> {
+    ) -> OptionalField<T, Self, Struct, OT, O> {
         OptionalField {
             field_name: name.into(),
             getter,
@@ -73,7 +70,7 @@ where
     }
 
     /// Returns a codec that is a list of this codec.
-    fn list_of(self) -> impl Codec<Vec<T>> {
+    fn list_of(self) -> impl Codec<Vec<T>, OT, O> {
         ListCodec {
             inner: self,
             _phantom: PhantomData,
@@ -82,21 +79,21 @@ where
 
     /// Maps the output of this codec between 2 transformation functions.
     /// Implementors should hold the invariant of `F(G(x)) = x` such that the functions can be used to freely convert between the two types.
-    fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U>
+    fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U, OT, O>
     where
         F: Fn(&T) -> U,
         G: Fn(&U) -> T,
     {
         XMapCodec {
             inner: self,
-            f: to_new,
-            g: from_new,
+            f1: to_new,
+            f2: from_new,
             _phantom: PhantomData,
         }
     }
 
     /// This returns a Codec that represents a pair of two codecs.
-    fn pair<R>(self, right: impl Codec<R>) -> impl Codec<(T, R)> {
+    fn pair<R>(self, right: impl Codec<R, OT, O>) -> impl Codec<(T, R), OT, O> {
         PairCodec {
             left: self,
             right,
@@ -105,7 +102,7 @@ where
     }
 
     /// This bounds the result of this codec in the range, returning an error if the value is not within the range.
-    fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T>
+    fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T, OT, O>
     where
         T: PartialOrd + Debug,
     {
@@ -117,14 +114,12 @@ where
     }
 }
 
-impl<T, C: Codec<T>> CodecAdapters<T> for C {}
-
 /// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible.
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.
-pub trait DefaultCodec
+pub trait DefaultCodec<OT, O: CodecOps<OT>>
 where
     Self: Sized,
 {
     /// Returns the default codec for a type.
-    fn codec() -> impl Codec<Self>;
+    fn codec() -> impl Codec<Self, OT, O>;
 }
