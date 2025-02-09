@@ -265,7 +265,100 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
 
 #[cfg(test)]
 mod tests {
+    use alloc::{
+        string::{String, ToString},
+        vec,
+    };
+
     use crate::serialization::{Codec, CodecAdapters, DefaultCodec, json::JsonOps};
+
+    #[test]
+    fn f64_codec() {
+        let value = 10.0;
+        let mut encoded = f64::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec().decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn string_codec() {
+        let value = "Hello!".into();
+        let mut encoded = String::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = String::codec().decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn bool_codec() {
+        let value = true;
+        let mut encoded = bool::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = bool::codec().decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn numeric_codec() {
+        let value = 10;
+        let mut encoded = i32::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = i32::codec().decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+
+        let value = 10;
+        let mut encoded = i64::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = i64::codec().decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn list_codec() {
+        let value = vec![10, 20, 30];
+        let mut encoded = i32::codec().list_of().encode(&JsonOps, &value).unwrap();
+        let decoded = i32::codec()
+            .list_of()
+            .decode(&JsonOps, &mut encoded)
+            .unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn xmap_codec() {
+        let value = 15;
+        let codec = i32::codec().xmap(|x| x * 5, |x| x / 5);
+        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn pair_codec() {
+        let value = (15, "Hello".to_string());
+        let codec = i32::codec().pair(String::codec());
+        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn bounded_codec() {
+        let value = 15;
+        let codec = i32::codec().bounded(1..30);
+        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
+
+        assert!(codec.encode(&JsonOps, &75).is_err());
+        assert!(codec.encode(&JsonOps, &1).is_ok());
+        assert!(codec.encode(&JsonOps, &30).is_err());
+    }
 
     #[test]
     fn dynamic_codec() {
