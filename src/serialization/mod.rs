@@ -26,6 +26,11 @@ pub use builtins::record_builder::MapCodecBuilder;
 /// [`CodecAdapter`]: [`serialization::CodecAdapter`]
 /// [`CodecAdapter::xmap`]: [`serialization::CodecAdapter::xmap`]
 /// [`CodecAdapter::list_of`]: [`serialization::CodecAdapter::list_of`]
+#[diagnostic::on_unimplemented(
+    message = "{Self} is not a codec",
+    label = "{Self} must be a Codec<{Type}>",
+    note = "some types provide an implementation of DefaultCodec::codec()"
+)]
 pub trait Codec<Type, OpsType, Ops: CodecOps<OpsType>> {
     /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
