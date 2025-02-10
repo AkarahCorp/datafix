@@ -1,12 +1,14 @@
 mod builtins;
 mod ops;
 
-use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
+use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use builtins::{
-    codecs::{ArcCodec, BoundedCodec, DynamicCodec, ListCodec, PairCodec, XMapCodec},
+    codecs::{
+        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, FnCodec, ListCodec, PairCodec, XMapCodec,
+    },
     records::{OptionalField, RecordField},
 };
-use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
+use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
 
@@ -130,6 +132,13 @@ where
             codec: Arc::new(self),
         }
     }
+
+    fn boxed(self) -> BoxCodec<T, OT, O, Self> {
+        BoxCodec {
+            inner: self,
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> CodecAdapters<T, OT, O> for C {}
@@ -142,4 +151,46 @@ where
 {
     /// Returns the default codec for a type.
     fn codec() -> impl Codec<Self, OT, O>;
+}
+
+pub struct Codecs;
+
+impl Codecs {
+    pub fn recursive<
+        T: 'static,
+        OT: 'static,
+        O: CodecOps<OT> + 'static,
+        F: Fn(DynamicCodec<T, OT, O>) -> Oc,
+        Oc: Codec<T, OT, O> + 'static,
+    >(
+        f: F,
+    ) -> DynamicCodec<T, OT, O> {
+        let placeholder: Rc<RefCell<Option<ArcCodec<T, OT, O>>>> = Rc::new(RefCell::new(None));
+        let placeholder_clone_1: Rc<RefCell<Option<ArcCodec<T, OT, O>>>> = placeholder.clone();
+        let placeholder_clone_2 = placeholder.clone();
+
+        let dummy = DynamicCodec {
+            codec: Box::new(FnCodec {
+                encode: Box::new(move |ops, value| {
+                    if let Some(codec) = placeholder_clone_1.borrow().as_ref() {
+                        codec.encode(ops, value)
+                    } else {
+                        panic!("tried to encode using dummy codec before initialization")
+                    }
+                }),
+                decode: Box::new(move |ops, value| {
+                    if let Some(codec) = placeholder_clone_2.borrow().as_ref() {
+                        codec.decode(ops, value)
+                    } else {
+                        panic!("tried to decode using dummy codec before initialization")
+                    }
+                }),
+            }),
+        };
+
+        let codec = f(dummy).arc();
+        *placeholder.borrow_mut() = Some(codec.clone());
+
+        codec.dynamic()
+    }
 }

@@ -250,6 +250,14 @@ pub struct ArcCodec<T, OT, O: CodecOps<OT>> {
     pub(crate) codec: Arc<dyn Codec<T, OT, O>>,
 }
 
+impl<T, OT, O: CodecOps<OT>> Clone for ArcCodec<T, OT, O> {
+    fn clone(&self) -> Self {
+        Self {
+            codec: self.codec.clone(),
+        }
+    }
+}
+
 impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         self.codec.as_ref().encode(ops, value)
@@ -260,14 +268,47 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
     }
 }
 
+pub struct FnCodec<T, OT, O: CodecOps<OT>> {
+    pub(crate) encode: Box<dyn Fn(&O, &T) -> DataResult<OT>>,
+    pub(crate) decode: Box<dyn Fn(&O, &mut OT) -> DataResult<T>>,
+}
+
+impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
+    fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
+        (self.encode)(ops, value)
+    }
+
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+        (self.decode)(ops, value)
+    }
+}
+
+pub struct BoxCodec<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> {
+    pub(crate) inner: C,
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
+}
+
+impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O> for BoxCodec<T, OT, O, C> {
+    fn encode(&self, ops: &O, value: &Box<T>) -> DataResult<OT> {
+        self.inner.encode(ops, value)
+    }
+
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<Box<T>> {
+        self.inner.decode(ops, value).map(|x| Box::new(x))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{
+        boxed::Box,
         string::{String, ToString},
         vec,
     };
 
-    use crate::serialization::{Codec, CodecAdapters, DefaultCodec, json::JsonOps};
+    use crate::serialization::{
+        Codec, CodecAdapters, Codecs, DefaultCodec, MapCodecBuilder, json::JsonOps,
+    };
 
     #[test]
     fn f64_codec() {
@@ -377,5 +418,61 @@ mod tests {
             .decode(&JsonOps, &mut encoded)
             .unwrap();
         assert_eq!(decoded, value);
+    }
+
+    #[test]
+    pub fn optional_codec() {
+        #[derive(Clone, Debug, PartialEq)]
+        struct Wrapper {
+            value: Option<f64>,
+        }
+
+        let codec = MapCodecBuilder::new()
+            .field(f64::codec().optional_field_of("value", |w: &Wrapper| &w.value))
+            .build(|value| Wrapper { value });
+
+        let value = Wrapper { value: None };
+        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    pub fn recursive_codec() {
+        #[derive(Clone, PartialEq, Debug)]
+        struct LinkedList {
+            value: i32,
+            next: Option<Box<LinkedList>>,
+        }
+
+        impl LinkedList {
+            pub fn new(value: i32) -> LinkedList {
+                LinkedList { value, next: None }
+            }
+            pub fn seq(self, next: LinkedList) -> Self {
+                LinkedList {
+                    value: self.value,
+                    next: Some(Box::new(next)),
+                }
+            }
+        }
+
+        let value = LinkedList::new(1).seq(LinkedList::new(2).seq(LinkedList::new(3)));
+
+        let codec = Codecs::recursive(|codec| {
+            MapCodecBuilder::new()
+                .field(i32::codec().field_of("value", |l: &LinkedList| &l.value))
+                .field(
+                    codec
+                        .boxed()
+                        .optional_field_of("next", |l: &LinkedList| &l.next),
+                )
+                .build(|value, next| LinkedList { value, next })
+        });
+
+        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+
+        assert_eq!(value, decoded);
     }
 }

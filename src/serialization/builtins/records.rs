@@ -16,7 +16,7 @@ pub struct OptionalField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &Option<T>,
     pub(crate) codec: C,
-    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
+    pub(crate) _phantom: PhantomData<fn() -> (OT, O)>,
 }
 
 impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
@@ -41,7 +41,7 @@ impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
         let mut obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
             Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
-            Err(e) => Err(e),
+            Err(_) => Ok(None),
         }
     }
 
