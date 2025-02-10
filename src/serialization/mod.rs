@@ -120,6 +120,9 @@ where
         }
     }
 
+    /// Wraps this codec in a `Box<dyn Codec<...>>`, allowing it to be used in dynamic contexts where you 
+    /// only know which codec will be passed in at runtime. This also creates a pointer to a codec,
+    /// enabling self-referential codecs.
     fn dynamic(self) -> DynamicCodec<T, OT, O>
     where
         Self: 'static,
@@ -129,6 +132,7 @@ where
         }
     }
 
+    /// Wraps this codec in an `Arc`, allowing it to be cloned and shared across threads.
     fn arc(self) -> ArcCodec<T, OT, O>
     where
         Self: 'static,
@@ -138,6 +142,7 @@ where
         }
     }
 
+    /// Wraps the value being serialized or deserialized in a [`Box`].
     fn boxed(self) -> BoxCodec<T, OT, O, Self> {
         BoxCodec {
             inner: self,
@@ -158,9 +163,27 @@ where
     fn codec() -> impl Codec<Self, OT, O>;
 }
 
+/// This type provides associated methods for creating a variety of types of codecs.
 pub struct Codecs;
 
 impl Codecs {
+    /// Creates a [`Codec`] you can use for serializing and deserializing recursive types.
+    /// 
+    /// For example, if you wanted to create a recursive codec for a linked list, you coudl do so with such:
+    /// ```rs
+    /// #[derive(Clone, PartialEq, Debug)]
+    /// struct LinkedList {
+    ///     value: i32,
+    ///     next: Option<Box<LinkedList>>,
+    /// }
+    /// 
+    /// Codecs::recursive(|codec| {
+    ///     MapCodecBuilder::new()
+    ///         .field(i32::codec().field_of("value", LinkedList::value))
+    ///         .field(codec.boxed().optional_field_of("next", LinkedList::next))
+    ///         .build(LinkedList::new)
+    /// });
+    /// ```
     pub fn recursive<
         T: 'static,
         OT: 'static,
@@ -169,33 +192,30 @@ impl Codecs {
         Oc: Codec<T, OT, O> + 'static,
     >(
         f: F,
-    ) -> DynamicCodec<T, OT, O> {
-        let placeholder: Rc<RefCell<Option<ArcCodec<T, OT, O>>>> = Rc::new(RefCell::new(None));
-        let placeholder_clone_1: Rc<RefCell<Option<ArcCodec<T, OT, O>>>> = placeholder.clone();
+    ) -> ArcCodec<T, OT, O> {
+        let placeholder = Rc::new(RefCell::new(None::<ArcCodec<_, _, _>>));
+        let placeholder_clone_1 = placeholder.clone();
         let placeholder_clone_2 = placeholder.clone();
 
         let dummy = DynamicCodec {
             codec: Box::new(FnCodec {
                 encode: Box::new(move |ops, value| {
-                    if let Some(codec) = placeholder_clone_1.borrow().as_ref() {
-                        codec.encode(ops, value)
-                    } else {
-                        panic!("tried to encode using dummy codec before initialization")
-                    }
+                    placeholder_clone_1.borrow().as_ref()
+                        .expect("tried to decode before initialization")
+                        .encode(ops, value)
                 }),
                 decode: Box::new(move |ops, value| {
-                    if let Some(codec) = placeholder_clone_2.borrow().as_ref() {
-                        codec.decode(ops, value)
-                    } else {
-                        panic!("tried to decode using dummy codec before initialization")
-                    }
+                    placeholder_clone_2.borrow().as_ref()
+                        .expect("tried to decode before initialization")
+                        .decode(ops, value)
                 }),
             }),
         };
 
         let codec = f(dummy).arc();
+
         *placeholder.borrow_mut() = Some(codec.clone());
 
-        codec.dynamic()
+        codec
     }
 }
