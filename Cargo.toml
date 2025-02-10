@@ -7,4 +7,5 @@ description = "A library to serialize & deserialize data and upgrade data betwee
 license = "MIT"
 
 [dependencies]
+either = { version = "1.13.0", default-features = false }
 json = { version = "0.12.4" }

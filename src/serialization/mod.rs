@@ -4,10 +4,11 @@ mod ops;
 use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use builtins::{
     codecs::{
-        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, FnCodec, ListCodec, PairCodec, XMapCodec,
+        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, EitherCodec, FnCodec, ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec
     },
     records::{OptionalField, RecordField},
 };
+use either::Either;
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 pub use ops::*;
@@ -120,6 +121,26 @@ where
         }
     }
 
+    /// If this codec fails to encode or decode, it will fall back to using the second codec, only failing if both this and
+    /// the other codec fail.
+    fn try_else(self, other: impl Codec<T, OT, O>) -> impl Codec<T, OT, O> {
+        TryElseCodec {
+            lc: self,
+            rc: other,
+            _phantom: PhantomData
+        }
+    }
+
+    /// If decoding for this codec fails, provide a default value that will be used instead.
+    /// If you are trying to make an optional field in a map, use [`CodecAdapters::optional_field_of`] instead.
+    fn or_else<F: Fn() -> T>(self, f: F) -> impl Codec<T, OT, O> {
+        OrElseCodec {
+            codec: self,
+            default: f,
+            _phantom: PhantomData
+        }
+    }
+
     /// Wraps this codec in a `Box<dyn Codec<...>>`, allowing it to be used in dynamic contexts where you 
     /// only know which codec will be passed in at runtime. This also creates a pointer to a codec,
     /// enabling self-referential codecs.
@@ -217,5 +238,23 @@ impl Codecs {
         *placeholder.borrow_mut() = Some(codec.clone());
 
         codec
+    }
+
+    pub fn either<
+        T: 'static,
+        T2: 'static,
+        OT: 'static,
+        O: CodecOps<OT> + 'static,
+        Lc: Codec<T, OT, O> + 'static,
+        Rc: Codec<T2, OT, O> + 'static,
+    >(
+        left: Lc,
+        right: Rc
+    ) -> impl Codec<Either<T, T2>, OT, O> {
+        EitherCodec {
+            lc: left,
+            rc: right,
+            _phantom: PhantomData
+        }
     }
 }
