@@ -4,12 +4,13 @@ mod ops;
 use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use builtins::{
     codecs::{
-        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, EitherCodec, FnCodec, ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec
+        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, EitherCodec, FnCodec, ListCodec,
+        OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
     },
     records::{OptionalField, RecordField},
 };
-use either::Either;
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
+use either::Either;
 
 pub use ops::*;
 
@@ -127,7 +128,7 @@ where
         TryElseCodec {
             lc: self,
             rc: other,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -137,11 +138,11 @@ where
         OrElseCodec {
             codec: self,
             default: f,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
-    /// Wraps this codec in a `Box<dyn Codec<...>>`, allowing it to be used in dynamic contexts where you 
+    /// Wraps this codec in a `Box<dyn Codec<...>>`, allowing it to be used in dynamic contexts where you
     /// only know which codec will be passed in at runtime. This also creates a pointer to a codec,
     /// enabling self-referential codecs.
     fn dynamic(self) -> DynamicCodec<T, OT, O>
@@ -189,7 +190,7 @@ pub struct Codecs;
 
 impl Codecs {
     /// Creates a [`Codec`] you can use for serializing and deserializing recursive types.
-    /// 
+    ///
     /// For example, if you wanted to create a recursive codec for a linked list, you coudl do so with such:
     /// ```rs
     /// #[derive(Clone, PartialEq, Debug)]
@@ -197,7 +198,7 @@ impl Codecs {
     ///     value: i32,
     ///     next: Option<Box<LinkedList>>,
     /// }
-    /// 
+    ///
     /// Codecs::recursive(|codec| {
     ///     MapCodecBuilder::new()
     ///         .field(i32::codec().field_of("value", LinkedList::value))
@@ -221,12 +222,16 @@ impl Codecs {
         let dummy = DynamicCodec {
             codec: Box::new(FnCodec {
                 encode: Box::new(move |ops, value| {
-                    placeholder_clone_1.borrow().as_ref()
+                    placeholder_clone_1
+                        .borrow()
+                        .as_ref()
                         .expect("tried to decode before initialization")
                         .encode(ops, value)
                 }),
                 decode: Box::new(move |ops, value| {
-                    placeholder_clone_2.borrow().as_ref()
+                    placeholder_clone_2
+                        .borrow()
+                        .as_ref()
                         .expect("tried to decode before initialization")
                         .decode(ops, value)
                 }),
@@ -249,12 +254,12 @@ impl Codecs {
         Rc: Codec<T2, OT, O> + 'static,
     >(
         left: Lc,
-        right: Rc
+        right: Rc,
     ) -> impl Codec<Either<T, T2>, OT, O> {
         EitherCodec {
             lc: left,
             rc: right,
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 }

@@ -302,34 +302,34 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O> for BoxCod
 pub struct TryElseCodec<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> {
     pub(crate) lc: Lc,
     pub(crate) rc: Rc,
-    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, OT, O> for TryElseCodec<T, OT, O, Lc, Rc> {
+impl<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, OT, O>
+    for TryElseCodec<T, OT, O, Lc, Rc>
+{
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
-        self.lc.encode(ops, value)
+        self.lc
+            .encode(ops, value)
             .or_else(|_| self.rc.encode(ops, value))
     }
 
     fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
-        self.lc.decode(ops, value)
+        self.lc
+            .decode(ops, value)
             .or_else(|_| self.rc.decode(ops, value))
     }
 }
 
-pub struct EitherCodec<
-    T, OT, O: CodecOps<OT>, 
-    T2,
-    Lc: Codec<T, OT, O>, 
-    Rc: Codec<T2, OT, O>> {
+pub struct EitherCodec<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>> {
     pub(crate) lc: Lc,
     pub(crate) rc: Rc,
-    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O, T2)>
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O, T2)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, 
-    T2,
-    Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>> Codec<Either<T, T2>, OT, O> for EitherCodec<T, OT, O, T2, Lc, Rc> {
+impl<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
+    Codec<Either<T, T2>, OT, O> for EitherCodec<T, OT, O, T2, Lc, Rc>
+{
     fn encode(&self, ops: &O, value: &Either<T, T2>) -> DataResult<OT> {
         match value {
             Either::Left(value) => self.lc.encode(ops, value),
@@ -342,8 +342,8 @@ impl<T, OT, O: CodecOps<OT>,
             Ok(v) => Ok(Either::Left(v)),
             Err(_) => match self.rc.decode(ops, value) {
                 Ok(v) => Ok(Either::Right(v)),
-                Err(e) => Err(e)
-            }
+                Err(e) => Err(e),
+            },
         }
     }
 }
@@ -351,16 +351,21 @@ impl<T, OT, O: CodecOps<OT>,
 pub struct OrElseCodec<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> {
     pub(crate) codec: C,
     pub(crate) default: F,
-    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>
+    pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O> for OrElseCodec<T, OT, O, C, F> {
+impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
+    for OrElseCodec<T, OT, O, C, F>
+{
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         self.codec.encode(ops, value)
     }
 
     fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
-        Ok(self.codec.decode(ops, value).unwrap_or_else(|_| (self.default)()))
+        Ok(self
+            .codec
+            .decode(ops, value)
+            .unwrap_or_else(|_| (self.default)()))
     }
 }
 
