@@ -369,6 +369,35 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
     }
 }
 
+pub struct DispatchCodec<
+    T,
+    OT,
+    O: CodecOps<OT>,
+    E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
+    F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
+> {
+    pub(crate) from_type_to_codec: E,
+    pub(crate) from_ops_to_codec: F,
+    pub(crate) _phantom: PhantomData<(T, OT, O)>,
+}
+
+impl<
+    T,
+    OT,
+    O: CodecOps<OT>,
+    E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
+    F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
+> Codec<T, OT, O> for DispatchCodec<T, OT, O, E, F>
+{
+    fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
+        (self.from_type_to_codec)(value)?.encode(ops, value)
+    }
+
+    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+        (self.from_ops_to_codec)(ops, value)?.decode(ops, value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{
@@ -377,8 +406,12 @@ mod tests {
         vec,
     };
 
-    use crate::serialization::{
-        Codec, CodecAdapters, Codecs, DefaultCodec, MapCodecBuilder, json::JsonOps,
+    use crate::{
+        result::DataError,
+        serialization::{
+            Codec, CodecAdapters, CodecOps, Codecs, DefaultCodec, MapCodecBuilder,
+            builtins::codecs::DynamicCodec, json::JsonOps,
+        },
     };
 
     #[test]
@@ -544,6 +577,75 @@ mod tests {
         let mut encoded = codec.encode(&JsonOps, &value).unwrap();
         let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
 
+        assert_eq!(value, decoded);
+    }
+
+    #[test]
+    pub fn dispatch_codec() {
+        #[derive(PartialEq, Debug)]
+        enum UnknownType {
+            Number(f64),
+            String(String),
+        }
+
+        impl UnknownType {
+            pub fn number_codec<OT: 'static, O: CodecOps<OT> + 'static>()
+            -> DynamicCodec<Self, OT, O> {
+                f64::codec()
+                    .xmap(
+                        |x| UnknownType::Number(*x),
+                        |x| {
+                            let UnknownType::Number(x) = x else {
+                                panic!();
+                            };
+                            *x
+                        },
+                    )
+                    .dynamic()
+            }
+
+            pub fn string_codec<OT: 'static, O: CodecOps<OT> + 'static>()
+            -> DynamicCodec<Self, OT, O> {
+                String::codec()
+                    .xmap(
+                        |x| UnknownType::String(x.clone()),
+                        |x| {
+                            let UnknownType::String(x) = x else {
+                                unreachable!();
+                            };
+                            x.clone()
+                        },
+                    )
+                    .dynamic()
+            }
+
+            pub fn codec<OT: 'static, O: CodecOps<OT> + 'static>() -> impl Codec<Self, OT, O> {
+                Codecs::dispatch(
+                    |value: &UnknownType| match value {
+                        UnknownType::Number(_) => Ok(UnknownType::number_codec()),
+                        UnknownType::String(_) => Ok(UnknownType::string_codec()),
+                    },
+                    |ops: &O, value: &OT| {
+                        if ops.get_string(value).is_ok() {
+                            Ok(UnknownType::string_codec())
+                        } else if ops.get_number(value).is_ok() {
+                            Ok(UnknownType::number_codec())
+                        } else {
+                            Err(DataError::unexpected_type("string | number"))
+                        }
+                    },
+                )
+            }
+        }
+
+        let value = UnknownType::Number(10.0);
+        let mut encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec().decode(&JsonOps, &mut encoded).unwrap();
+        assert_eq!(value, decoded);
+
+        let value = UnknownType::String("foobar".to_string());
+        let mut encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec().decode(&JsonOps, &mut encoded).unwrap();
         assert_eq!(value, decoded);
     }
 }

@@ -4,10 +4,10 @@ mod ops;
 use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use builtins::{
     codecs::{
-        ArcCodec, BoundedCodec, BoxCodec, DynamicCodec, EitherCodec, FnCodec, ListCodec,
-        OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
+        ArcCodec, BoundedCodec, BoxCodec, DispatchCodec, DynamicCodec, EitherCodec, FnCodec,
+        ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
     },
-    records::{OptionalField, RecordField},
+    records::{OptionalField, RecordField, UnitCodec},
 };
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use either::Either;
@@ -261,5 +261,26 @@ impl Codecs {
             rc: right,
             _phantom: PhantomData,
         }
+    }
+
+    pub fn dispatch<
+        T,
+        OT,
+        O: CodecOps<OT>,
+        E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
+        F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
+    >(
+        from_type_to_codec: E,
+        from_ops_to_codec: F,
+    ) -> impl Codec<T, OT, O> {
+        DispatchCodec {
+            from_ops_to_codec,
+            from_type_to_codec,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn unit<OT, O: CodecOps<OT>>() -> impl Codec<(), OT, O> {
+        UnitCodec {}
     }
 }
