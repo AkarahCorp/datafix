@@ -17,8 +17,20 @@ use crate::result::DataResult;
 /// [`Codec`]: [`super::Codec`]
 /// [`Codec::decode`]: [`super::Codec::decode`]
 pub trait CodecOps<T>: Clone {
-    /// Creates a new numeric value of type `T`. The range of the underlying number should be atleast of `f64` for maximum compatability.
-    fn create_number(&self, value: &f64) -> T;
+    /// Creates a new numeric value of type `T`.
+    fn create_double(&self, value: &f64) -> T;
+    /// Creates a new numeric value of type `T`.
+    fn create_float(&self, value: &f32) -> T;
+
+    /// Creates a new numeric value of type `T`.
+    fn create_byte(&self, value: &i8) -> T;
+    /// Creates a new numeric value of type `T`.
+    fn create_short(&self, value: &i16) -> T;
+    /// Creates a new numeric value of type `T`.
+    fn create_int(&self, value: &i32) -> T;
+    /// Creates a new numeric value of type `T`.
+    fn create_long(&self, value: &i64) -> T;
+
     /// Creates a new string value of type `T`.
     fn create_string(&self, value: &str) -> T;
     /// Creates a new boolean value of type `T`.
@@ -30,8 +42,20 @@ pub trait CodecOps<T>: Clone {
     /// Creates a new map type of type `T`. The value should have no associated fields or value. An empty map is a valid example of a representation.
     fn create_unit(&self) -> T;
 
+    /// This converts a value of type `T` into a value of type `f32`.
+    fn get_float(&self, value: &T) -> DataResult<f32>;
     /// This converts a value of type `T` into a value of type `f64`.
-    fn get_number(&self, value: &T) -> DataResult<f64>;
+    fn get_double(&self, value: &T) -> DataResult<f64>;
+
+    /// This converts a value of type `T` into a value of type `i8`.
+    fn get_byte(&self, value: &T) -> DataResult<i8>;
+    /// This converts a value of type `T` into a value of type `i16`.
+    fn get_short(&self, value: &T) -> DataResult<i16>;
+    /// This converts a value of type `T` into a value of type `i32`.
+    fn get_int(&self, value: &T) -> DataResult<i32>;
+    /// This converts a value of type `T` into a value of type `i64`.
+    fn get_long(&self, value: &T) -> DataResult<i64>;
+
     /// This converts a value of type `T` into a value of type `String`.
     fn get_string(&self, value: &T) -> DataResult<String>;
     /// This converts a value of type `T` into a value of type `bool`.

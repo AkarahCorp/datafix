@@ -13,7 +13,7 @@ use crate::{
 pub struct JsonOps;
 
 impl CodecOps<JsonValue> for JsonOps {
-    fn create_number(&self, value: &f64) -> JsonValue {
+    fn create_double(&self, value: &f64) -> JsonValue {
         JsonValue::Number(Number::from(*value))
     }
 
@@ -50,7 +50,7 @@ impl CodecOps<JsonValue> for JsonOps {
         JsonValue::Object(Object::new())
     }
 
-    fn get_number(&self, value: &JsonValue) -> crate::result::DataResult<f64> {
+    fn get_double(&self, value: &JsonValue) -> crate::result::DataResult<f64> {
         match value {
             JsonValue::Number(number) => Ok((*number).into()),
             _ => Err(DataError::unexpected_type("number")),
@@ -99,6 +99,61 @@ impl CodecOps<JsonValue> for JsonOps {
             Ok(())
         } else {
             Err(DataError::new_custom("object must have 0 fields"))
+        }
+    }
+
+    fn create_float(&self, value: &f32) -> JsonValue {
+        JsonValue::Number(Number::from(*value))
+    }
+
+    fn create_byte(&self, value: &i8) -> JsonValue {
+        JsonValue::Number(Number::from(*value))
+    }
+
+    fn create_short(&self, value: &i16) -> JsonValue {
+        JsonValue::Number(Number::from(*value))
+    }
+
+    fn create_int(&self, value: &i32) -> JsonValue {
+        JsonValue::Number(Number::from(*value))
+    }
+
+    fn create_long(&self, value: &i64) -> JsonValue {
+        JsonValue::Number(Number::from(*value))
+    }
+
+    fn get_float(&self, value: &JsonValue) -> DataResult<f32> {
+        match value {
+            JsonValue::Number(number) => Ok((*number).into()),
+            _ => Err(DataError::unexpected_type("number")),
+        }
+    }
+
+    fn get_byte(&self, value: &JsonValue) -> DataResult<i8> {
+        match value {
+            JsonValue::Number(number) => Ok(Into::<f64>::into(*number) as i8),
+            _ => Err(DataError::unexpected_type("number")),
+        }
+    }
+
+    fn get_short(&self, value: &JsonValue) -> DataResult<i16> {
+        match value {
+            JsonValue::Number(number) => Ok(Into::<f64>::into(*number) as i16),
+            _ => Err(DataError::unexpected_type("number")),
+        }
+    }
+
+    fn get_int(&self, value: &JsonValue) -> DataResult<i32> {
+        match value {
+            JsonValue::Number(number) => Ok(Into::<f64>::into(*number) as i32),
+            _ => Err(DataError::unexpected_type("number")),
+        }
+    }
+
+    fn get_long(&self, value: &JsonValue) -> DataResult<i64> {
+        match value {
+            JsonValue::Number(number) => Ok(Into::<f64>::into(*number) as i64),
+            _ => Err(DataError::unexpected_type("number")),
         }
     }
 }

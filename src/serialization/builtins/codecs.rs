@@ -13,24 +13,6 @@ use crate::{
     serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView},
 };
 
-pub(crate) struct F64Codec;
-
-impl<OT, O: CodecOps<OT>> Codec<f64, OT, O> for F64Codec {
-    fn encode(&self, ops: &O, value: &f64) -> DataResult<OT> {
-        Ok(ops.create_number(value))
-    }
-
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<f64> {
-        ops.get_number(value)
-    }
-}
-
-impl<U, O: CodecOps<U>> DefaultCodec<U, O> for f64 {
-    fn codec() -> impl Codec<Self, U, O> {
-        F64Codec
-    }
-}
-
 pub(crate) struct StringCodec;
 
 impl<U, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
@@ -64,54 +46,6 @@ impl<U, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
 impl<U, O: CodecOps<U>> DefaultCodec<U, O> for bool {
     fn codec() -> impl Codec<Self, U, O> {
         BoolCodec
-    }
-}
-
-pub(crate) trait F64Convertable
-where
-    Self: Sized + Copy,
-{
-    fn into_f64(self) -> f64;
-    fn from_f64(value: f64) -> Self;
-}
-
-macro_rules! impl_f64_convertable {
-    ($($t:ty),*) => {
-        $(
-            impl F64Convertable for $t {
-                fn into_f64(self) -> f64 {
-                    self as f64
-                }
-
-                fn from_f64(value: f64) -> Self {
-                    value as $t
-                }
-            }
-
-            impl<U, O: CodecOps<U>> DefaultCodec<U, O> for $t {
-                fn codec() -> impl Codec<Self, U, O> {
-                    NumberCodec {
-                        _phantom: PhantomData,
-                    }
-                }
-            }
-        )*
-    };
-}
-
-impl_f64_convertable! { i8, i16, i32, i64, u8, u16, u32, u64, f32, usize, isize }
-
-pub(crate) struct NumberCodec<N: F64Convertable, U, O: CodecOps<U>> {
-    _phantom: PhantomData<fn() -> (N, U, O)>,
-}
-
-impl<U, O: CodecOps<U>, N: F64Convertable> Codec<N, U, O> for NumberCodec<N, U, O> {
-    fn encode(&self, ops: &O, value: &N) -> DataResult<U> {
-        Ok(ops.create_number(&value.into_f64()))
-    }
-
-    fn decode(&self, ops: &O, value: &mut U) -> DataResult<N> {
-        Ok(N::from_f64(ops.get_number(value)?))
     }
 }
 
@@ -398,6 +332,45 @@ impl<
     }
 }
 
+macro_rules! make_numeric_codec {
+    (
+        $({$t:ty, $struct_name:ident, $get_name:ident, $make_name:ident})*
+        $(;)?
+    ) => {
+        $(pub struct $struct_name<OT, O: CodecOps<OT>> {
+            _phantom: PhantomData<fn() -> (OT, O)>,
+        }
+
+        impl<OT, O: CodecOps<OT>> Codec<$t, OT, O> for $struct_name<OT, O> {
+            fn encode(&self, ops: &O, value: &$t) -> DataResult<OT> {
+                Ok(ops.$make_name(value))
+            }
+
+            fn decode(&self, ops: &O, value: &mut OT) -> DataResult<$t> {
+                ops.$get_name(value)
+            }
+        }
+
+        impl<OT, O: CodecOps<OT>> DefaultCodec<OT, O> for $t {
+            fn codec() -> impl Codec<Self, OT, O> {
+                $struct_name {
+                    _phantom: PhantomData,
+                }
+            }
+        })*
+    };
+}
+
+make_numeric_codec! {
+    {f32, F32Codec, get_float, create_float}
+    {f64, F64Codec, get_double, create_double}
+
+    {i8, I8Codec, get_byte, create_byte}
+    {i16, I16Codec, get_short, create_short}
+    {i32, I32Codec, get_int, create_int}
+    {i64, I64Codec, get_long, create_long}
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{
@@ -628,7 +601,7 @@ mod tests {
                     |ops: &O, value: &OT| {
                         if ops.get_string(value).is_ok() {
                             Ok(UnknownType::string_codec())
-                        } else if ops.get_number(value).is_ok() {
+                        } else if ops.get_double(value).is_ok() {
                             Ok(UnknownType::number_codec())
                         } else {
                             Err(DataError::unexpected_type("string | number"))
