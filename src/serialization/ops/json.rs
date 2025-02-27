@@ -9,6 +9,8 @@ use crate::{
     serialization::{CodecOps, ListView, MapView},
 };
 
+use super::{ListViewMut, MapViewMut};
+
 #[derive(Debug, Clone)]
 pub struct JsonOps;
 
@@ -73,7 +75,7 @@ impl CodecOps<JsonValue> for JsonOps {
 
     fn get_list(
         &self,
-        value: &mut JsonValue,
+        value: &JsonValue,
     ) -> crate::result::DataResult<impl crate::serialization::ListView<JsonValue>> {
         match value {
             JsonValue::Array(_) => Ok(JsonListView { inner: value }),
@@ -81,12 +83,32 @@ impl CodecOps<JsonValue> for JsonOps {
         }
     }
 
-    fn get_map(
+    fn get_list_mut(
         &self,
         value: &mut JsonValue,
+    ) -> crate::result::DataResult<impl crate::serialization::ListViewMut<JsonValue>> {
+        match value {
+            JsonValue::Array(_) => Ok(JsonListViewMut { inner: value }),
+            _ => Err(DataError::unexpected_type("array")),
+        }
+    }
+
+    fn get_map(
+        &self,
+        value: &JsonValue,
     ) -> crate::result::DataResult<impl crate::serialization::MapView<JsonValue>> {
         match value {
             JsonValue::Object(_) => Ok(JsonObjectView { inner: value }),
+            _ => Err(DataError::unexpected_type("object")),
+        }
+    }
+
+    fn get_map_mut(
+        &self,
+        value: &mut JsonValue,
+    ) -> crate::result::DataResult<impl crate::serialization::MapViewMut<JsonValue>> {
+        match value {
+            JsonValue::Object(_) => Ok(JsonObjectViewMut { inner: value }),
             _ => Err(DataError::unexpected_type("object")),
         }
     }
@@ -159,11 +181,53 @@ impl CodecOps<JsonValue> for JsonOps {
 }
 
 struct JsonObjectView<'a> {
-    inner: &'a mut JsonValue,
+    inner: &'a JsonValue,
 }
 
 impl MapView<JsonValue> for JsonObjectView<'_> {
-    fn get(&mut self, name: &str) -> crate::result::DataResult<&mut JsonValue> {
+    fn get(&self, name: &str) -> DataResult<&JsonValue> {
+        let JsonValue::Object(object) = self.inner else {
+            return Err(DataError::unexpected_type("object"));
+        };
+        match object.get(name) {
+            Some(v) => Ok(v),
+            None => Err(DataError::key_not_found(name)),
+        }
+    }
+
+    fn keys(&self) -> Vec<String> {
+        if let JsonValue::Object(object) = &self.inner {
+            return object.iter().map(|x| x.0.into()).collect();
+        };
+        Vec::new()
+    }
+}
+
+struct JsonObjectViewMut<'a> {
+    inner: &'a mut JsonValue,
+}
+
+impl MapView<JsonValue> for JsonObjectViewMut<'_> {
+    fn get(&self, name: &str) -> DataResult<&JsonValue> {
+        let JsonValue::Object(object) = &self.inner else {
+            return Err(DataError::unexpected_type("object"));
+        };
+        match object.get(name) {
+            Some(v) => Ok(v),
+            None => Err(DataError::key_not_found(name)),
+        }
+    }
+
+    fn keys(&self) -> Vec<String> {
+        if let JsonValue::Object(object) = &self.inner {
+            return object.iter().map(|x| x.0.into()).collect();
+        };
+        Vec::new()
+    }
+}
+
+impl MapViewMut<JsonValue> for JsonObjectViewMut<'_> {
+    fn get_mut(&mut self, name: &str) -> DataResult<&mut JsonValue> {
         let JsonValue::Object(object) = self.inner else {
             return Err(DataError::unexpected_type("object"));
         };
@@ -174,45 +238,35 @@ impl MapView<JsonValue> for JsonObjectView<'_> {
     }
 
     fn set(&mut self, name: &str, value: JsonValue) {
-        if let JsonValue::Object(object) = self.inner {
-            object.insert(name, value);
-        }
-    }
-
-    fn keys(&self) -> Vec<String> {
-        if let JsonValue::Object(object) = &self.inner {
-            return object.iter().map(|x| x.0.into()).collect();
+        let JsonValue::Object(object) = self.inner else {
+            return;
         };
-        Vec::new()
+        object.insert(name, value);
     }
 
     fn remove(&mut self, key: &str) -> DataResult<JsonValue> {
-        if let JsonValue::Object(object) = self.inner {
-            return object
-                .remove(key)
-                .ok_or_else(|| DataError::key_not_found(key));
-        }
-        Err(DataError::unexpected_type("object"))
+        let JsonValue::Object(object) = self.inner else {
+            return Err(DataError::unexpected_type("object"));
+        };
+        object.remove(key).ok_or(DataError::key_not_found(key))
     }
 }
 
 struct JsonListView<'a> {
+    inner: &'a JsonValue,
+}
+
+struct JsonListViewMut<'a> {
     inner: &'a mut JsonValue,
 }
 
 impl ListView<JsonValue> for JsonListView<'_> {
-    fn append(&mut self, value: JsonValue) {
-        if let JsonValue::Array(array) = self.inner {
-            array.push(value);
-        }
-    }
-
-    fn get(&mut self, index: usize) -> crate::result::DataResult<&mut JsonValue> {
+    fn get(&self, index: usize) -> crate::result::DataResult<&JsonValue> {
         let JsonValue::Array(array) = self.inner else {
             return Err(DataError::unexpected_type("Array"));
         };
         let len = array.len();
-        match array.get_mut(index) {
+        match array.get(index) {
             Some(v) => Ok(v),
             None => Err(DataError::list_index_out_of_bounds(index, len)),
         }
@@ -226,6 +280,25 @@ impl ListView<JsonValue> for JsonListView<'_> {
     }
 }
 
+impl ListViewMut<JsonValue> for JsonListViewMut<'_> {
+    fn append(&mut self, value: JsonValue) {
+        let JsonValue::Array(array) = self.inner else {
+            return;
+        };
+        array.push(value);
+    }
+
+    fn get_mut(&mut self, index: usize) -> DataResult<&mut JsonValue> {
+        let JsonValue::Array(array) = self.inner else {
+            return Err(DataError::unexpected_type("Array"));
+        };
+        let len = array.len();
+        array
+            .get_mut(index)
+            .ok_or(DataError::list_index_out_of_bounds(index, len))
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -235,8 +308,8 @@ mod tests {
 
     #[test]
     fn simple_encode_decode() {
-        let mut encoded = f64::codec().encode(&JsonOps, &10.0).unwrap();
-        let decoded = f64::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = f64::codec().encode(&JsonOps, &10.0).unwrap();
+        let decoded = f64::codec().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(decoded, 10.0);
     }
 }

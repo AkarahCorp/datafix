@@ -39,7 +39,7 @@ pub trait Codec<Type, OpsType, Ops: CodecOps<OpsType>> {
     fn encode(&self, ops: &Ops, value: &Type) -> DataResult<OpsType>;
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn decode(&self, ops: &Ops, value: &mut OpsType) -> DataResult<Type>;
+    fn decode(&self, ops: &Ops, value: &OpsType) -> DataResult<Type>;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:

@@ -61,9 +61,13 @@ pub trait CodecOps<T>: Clone {
     /// This converts a value of type `T` into a value of type `bool`.
     fn get_boolean(&self, value: &T) -> DataResult<bool>;
     /// This converts a value of type `T` into a view into a list's contents.
-    fn get_list(&self, value: &mut T) -> DataResult<impl ListView<T>>;
+    fn get_list(&self, value: &T) -> DataResult<impl ListView<T>>;
+    /// This converts a value of type `T` into a view into a list's contents.
+    fn get_list_mut(&self, value: &mut T) -> DataResult<impl ListViewMut<T>>;
     /// This converts a value of type `T` into a view into an map's contents.
-    fn get_map(&self, value: &mut T) -> DataResult<impl MapView<T>>;
+    fn get_map(&self, value: &T) -> DataResult<impl MapView<T>>;
+    /// This converts a value of type `T` into a view into an map's contents.
+    fn get_map_mut(&self, value: &mut T) -> DataResult<impl MapViewMut<T>>;
     /// This converts a value of type `T` into a unit value with no fields or associated values.
     fn get_unit(&self, value: &T) -> DataResult<()>;
 
@@ -79,34 +83,46 @@ pub trait CodecOps<T>: Clone {
     }
 }
 
-/// Represents a lens into an map type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`MapView`]
-/// will result in the underlying datastructures being mutated.
+/// Represents a lens into an map type from a [`CodecOps`].
 pub trait MapView<T> {
+    /// Obtains a reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
+    fn get(&self, name: &str) -> DataResult<&T>;
     /// Obtains a mutable reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
-    fn get(&mut self, name: &str) -> DataResult<&mut T>;
+    fn keys(&self) -> Vec<String>;
+}
+
+/// Represents a mutable lens into an map type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`MapView`]
+/// will result in the underlying datastructures being mutated.
+pub trait MapViewMut<T>: MapView<T> {
+    /// Obtains a mutable reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
+    fn get_mut(&mut self, name: &str) -> DataResult<&mut T>;
     /// Sets a key-value pair in the map to a certain value.
     fn set(&mut self, name: &str, value: T);
     /// Removes a certain key from the map, returning it's old value if the value was present. May return a DataError::KeyNotFoundInMap if the key
     /// was not present in the map before,
     fn remove(&mut self, key: &str) -> DataResult<T>;
-    /// Obtains an owned and cloned list of keys that the map contained at the moment of calling.
-    fn keys(&self) -> Vec<String>;
     /// Updates a value in the map to a new value if a value was already present under the key.
     fn update<F: FnOnce(&mut T)>(&mut self, name: &str, f: F) {
-        if let Ok(v) = self.get(name) {
+        if let Ok(v) = self.get_mut(name) {
             f(v)
         }
     }
 }
-
-/// Represents a lens into an list type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`ListView`]
-/// will result in the underlying datastructures being mutated.
+/// Represents a lens into an list type from a [`CodecOps`].
 pub trait ListView<T> {
+    /// Gets a mutable reference to a value at an index inside of a list. May return a DataError::ListIndexOutOfBounds if the index is out of bounds.
+    /// This is up to the implementor of this method to check.
+    fn get(&self, index: usize) -> DataResult<&T>;
+    /// This consumes the value inside of the ListView and turns it into an iterator. This method may change in the near future.
+    fn into_iter(self) -> impl Iterator<Item = T>;
+}
+
+/// Represents a mutable lens into an list type from a [`CodecOps`]. Methods in this should be assumed to mutate - modifying the value using a [`ListView`]
+/// will result in the underlying datastructures being mutated.
+pub trait ListViewMut<T> {
     /// Appends a new value to the list. This may allocate.
     fn append(&mut self, value: T);
     /// Gets a mutable reference to a value at an index inside of a list. May return a DataError::ListIndexOutOfBounds if the index is out of bounds.
     /// This is up to the implementor of this method to check.
-    fn get(&mut self, index: usize) -> DataResult<&mut T>;
-    /// This consumes the value inside of the ListView and turns it into an iterator. This method may change in the near future.
-    fn into_iter(self) -> impl Iterator<Item = T>;
+    fn get_mut(&mut self, index: usize) -> DataResult<&mut T>;
 }

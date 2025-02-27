@@ -20,7 +20,7 @@ impl<U, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
         Ok(ops.create_string(value))
     }
 
-    fn decode(&self, ops: &O, value: &mut U) -> DataResult<String> {
+    fn decode(&self, ops: &O, value: &U) -> DataResult<String> {
         ops.get_string(value)
     }
 }
@@ -38,7 +38,7 @@ impl<U, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
         Ok(ops.create_boolean(value))
     }
 
-    fn decode(&self, ops: &O, value: &mut U) -> DataResult<bool> {
+    fn decode(&self, ops: &O, value: &U) -> DataResult<bool> {
         ops.get_boolean(value)
     }
 }
@@ -63,11 +63,11 @@ impl<T, C: Codec<T, U, O>, U, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<
         Ok(ops.create_list(list))
     }
 
-    fn decode(&self, ops: &O, value: &mut U) -> DataResult<Vec<T>> {
+    fn decode(&self, ops: &O, value: &U) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
-        for mut item in list.into_iter() {
-            vec.push(self.inner.decode(ops, &mut item)?);
+        for item in list.into_iter() {
+            vec.push(self.inner.decode(ops, &item)?);
         }
         Ok(vec)
     }
@@ -96,7 +96,7 @@ where
         self.inner.encode(ops, &(self.f2)(value))
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<NT> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<NT> {
         Ok((self.f1)(&self.inner.decode(ops, value)?))
     }
 }
@@ -116,8 +116,8 @@ impl<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> Codec<
         ]))
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<(L, R)> {
-        let mut obj = ops.get_map(value)?;
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<(L, R)> {
+        let obj = ops.get_map(value)?;
         let left = obj.get("left")?;
         let p1 = self.left.decode(ops, left)?;
         let right = obj.get("right")?;
@@ -153,7 +153,7 @@ impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT, O: CodecO
         }
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         let decoded = self.codec.decode(ops, value)?;
         if self.range.contains(&decoded) {
             Ok(decoded)
@@ -176,7 +176,7 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
         self.codec.as_ref().encode(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         self.codec.as_ref().decode(ops, value)
     }
 }
@@ -198,14 +198,14 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
         self.codec.as_ref().encode(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         self.codec.as_ref().decode(ops, value)
     }
 }
 
 pub struct FnCodec<T, OT, O: CodecOps<OT>> {
     pub(crate) encode: Box<dyn Fn(&O, &T) -> DataResult<OT>>,
-    pub(crate) decode: Box<dyn Fn(&O, &mut OT) -> DataResult<T>>,
+    pub(crate) decode: Box<dyn Fn(&O, &OT) -> DataResult<T>>,
 }
 
 impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
@@ -213,7 +213,7 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
         (self.encode)(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         (self.decode)(ops, value)
     }
 }
@@ -228,7 +228,7 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O> for BoxCod
         self.inner.encode(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<Box<T>> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<Box<T>> {
         self.inner.decode(ops, value).map(|x| Box::new(x))
     }
 }
@@ -248,7 +248,7 @@ impl<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, 
             .or_else(|_| self.rc.encode(ops, value))
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         self.lc
             .decode(ops, value)
             .or_else(|_| self.rc.decode(ops, value))
@@ -271,7 +271,7 @@ impl<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
         }
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<Either<T, T2>> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<Either<T, T2>> {
         match self.lc.decode(ops, value) {
             Ok(v) => Ok(Either::Left(v)),
             Err(_) => match self.rc.decode(ops, value) {
@@ -295,7 +295,7 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
         self.codec.encode(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         Ok(self
             .codec
             .decode(ops, value)
@@ -327,7 +327,7 @@ impl<
         (self.from_type_to_codec)(value)?.encode(ops, value)
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<T> {
         (self.from_ops_to_codec)(ops, value)?.decode(ops, value)
     }
 }
@@ -346,7 +346,7 @@ macro_rules! make_numeric_codec {
                 Ok(ops.$make_name(value))
             }
 
-            fn decode(&self, ops: &O, value: &mut OT) -> DataResult<$t> {
+            fn decode(&self, ops: &O, value: &OT) -> DataResult<$t> {
                 ops.$get_name(value)
             }
         }
@@ -390,8 +390,8 @@ mod tests {
     #[test]
     fn f64_codec() {
         let value = 10.0;
-        let mut encoded = f64::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = f64::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -399,8 +399,8 @@ mod tests {
     #[test]
     fn string_codec() {
         let value = "Hello!".into();
-        let mut encoded = String::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = String::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = String::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = String::codec().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -408,8 +408,8 @@ mod tests {
     #[test]
     fn bool_codec() {
         let value = true;
-        let mut encoded = bool::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = bool::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = bool::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = bool::codec().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -417,14 +417,14 @@ mod tests {
     #[test]
     fn numeric_codec() {
         let value = 10;
-        let mut encoded = i32::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = i32::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = i32::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = i32::codec().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
 
         let value = 10;
-        let mut encoded = i64::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = i64::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = i64::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = i64::codec().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -432,11 +432,8 @@ mod tests {
     #[test]
     fn list_codec() {
         let value = vec![10, 20, 30];
-        let mut encoded = i32::codec().list_of().encode(&JsonOps, &value).unwrap();
-        let decoded = i32::codec()
-            .list_of()
-            .decode(&JsonOps, &mut encoded)
-            .unwrap();
+        let encoded = i32::codec().list_of().encode(&JsonOps, &value).unwrap();
+        let decoded = i32::codec().list_of().decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -445,8 +442,8 @@ mod tests {
     fn xmap_codec() {
         let value = 15;
         let codec = i32::codec().xmap(|x| x * 5, |x| x / 5);
-        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -455,8 +452,8 @@ mod tests {
     fn pair_codec() {
         let value = (15, "Hello".to_string());
         let codec = i32::codec().pair(String::codec());
-        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -465,8 +462,8 @@ mod tests {
     fn bounded_codec() {
         let value = 15;
         let codec = i32::codec().bounded(1..30);
-        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
 
@@ -478,22 +475,16 @@ mod tests {
     #[test]
     fn dynamic_codec() {
         let value = 10.0;
-        let mut encoded = f64::codec().dynamic().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec()
-            .dynamic()
-            .decode(&JsonOps, &mut encoded)
-            .unwrap();
+        let encoded = f64::codec().dynamic().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec().dynamic().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(decoded, value);
     }
 
     #[test]
     fn arc_codec() {
         let value = 10.0;
-        let mut encoded = f64::codec().arc().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec()
-            .dynamic()
-            .decode(&JsonOps, &mut encoded)
-            .unwrap();
+        let encoded = f64::codec().arc().encode(&JsonOps, &value).unwrap();
+        let decoded = f64::codec().dynamic().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(decoded, value);
     }
 
@@ -509,8 +500,8 @@ mod tests {
             .build(|value| Wrapper { value });
 
         let value = Wrapper { value: None };
-        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
     }
 
@@ -547,8 +538,8 @@ mod tests {
                 .build(|value, next| LinkedList { value, next })
         });
 
-        let mut encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -612,13 +603,13 @@ mod tests {
         }
 
         let value = UnknownType::Number(10.0);
-        let mut encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = UnknownType::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
 
         let value = UnknownType::String("foobar".to_string());
-        let mut encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = UnknownType::codec().decode(&JsonOps, &mut encoded).unwrap();
+        let encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
     }
 }

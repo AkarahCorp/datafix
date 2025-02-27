@@ -8,7 +8,7 @@ use alloc::string::String;
 
 pub trait MapFieldGetter<T, C: Codec<T, OT, O>, Struct, Rt, OT, O: CodecOps<OT>> {
     fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>>;
-    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<Rt>;
+    fn get_field(&self, ops: &O, value: &OT) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
 }
 
@@ -37,8 +37,8 @@ impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
         }
     }
 
-    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<Option<T>> {
-        let mut obj = ops.get_map(value)?;
+    fn get_field(&self, ops: &O, value: &OT) -> DataResult<Option<T>> {
+        let obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
             Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
             Err(_) => Ok(None),
@@ -60,8 +60,8 @@ pub struct RecordField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
 impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> MapFieldGetter<T, C, Struct, T, OT, O>
     for RecordField<T, C, Struct, OT, O>
 {
-    fn get_field(&self, ops: &O, value: &mut OT) -> DataResult<T> {
-        let mut obj = ops.get_map(value)?;
+    fn get_field(&self, ops: &O, value: &OT) -> DataResult<T> {
+        let obj = ops.get_map(value)?;
         let field = obj.get(&self.field_name)?;
         self.codec.decode(ops, field)
     }
@@ -87,7 +87,7 @@ impl<OT, O: CodecOps<OT>> Codec<(), OT, O> for UnitCodec {
         Ok(ops.create_unit())
     }
 
-    fn decode(&self, ops: &O, value: &mut OT) -> DataResult<()> {
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<()> {
         ops.get_unit(value)
     }
 }
@@ -124,7 +124,7 @@ macro_rules! record_codec {
                 ])
             }
 
-            fn decode(&self, ops: &O, value: &mut OT) -> DataResult<Struct> {
+            fn decode(&self, ops: &O, value: &OT) -> DataResult<Struct> {
                 $(
                     let $field: $field_return_type = self.$field.get_field(ops, value)?;
                 )*
