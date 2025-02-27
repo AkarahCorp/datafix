@@ -64,6 +64,8 @@ pub trait CodecOps<T>: Clone {
     fn get_list(&self, value: &T) -> DataResult<impl ListView<T>>;
     /// This converts a value of type `T` into a view into a list's contents.
     fn get_list_mut(&self, value: &mut T) -> DataResult<impl ListViewMut<T>>;
+    /// This converts a value of type `T` into an owned view into an map's contents.
+    fn take_map(&self, value: T) -> DataResult<impl OwnedMapView<T>>;
     /// This converts a value of type `T` into a view into an map's contents.
     fn get_map(&self, value: &T) -> DataResult<impl MapView<T>>;
     /// This converts a value of type `T` into a view into an map's contents.
@@ -81,6 +83,14 @@ pub trait CodecOps<T>: Clone {
 
         Ok(self.create_map(iter1))
     }
+}
+
+/// Represents a lens into an map type from a [`CodecOps`].
+pub trait OwnedMapView<T> {
+    /// Obtains a reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
+    fn get(&self, name: &str) -> DataResult<&T>;
+    /// Obtains a reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
+    fn take(self, name: &str) -> DataResult<T>;
 }
 
 /// Represents a lens into an map type from a [`CodecOps`].

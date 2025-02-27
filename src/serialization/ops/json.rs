@@ -9,7 +9,7 @@ use crate::{
     serialization::{CodecOps, ListView, MapView},
 };
 
-use super::{ListViewMut, MapViewMut};
+use super::{ListViewMut, MapViewMut, OwnedMapView};
 
 #[derive(Debug, Clone)]
 pub struct JsonOps;
@@ -176,6 +176,39 @@ impl CodecOps<JsonValue> for JsonOps {
         match value {
             JsonValue::Number(number) => Ok(Into::<f64>::into(*number) as i64),
             _ => Err(DataError::unexpected_type("number")),
+        }
+    }
+
+    fn take_map(&self, value: JsonValue) -> DataResult<impl OwnedMapView<JsonValue>> {
+        match value {
+            JsonValue::Object(_) => Ok(OwnedJsonObjectView { inner: value }),
+            _ => Err(DataError::unexpected_type("object")),
+        }
+    }
+}
+
+struct OwnedJsonObjectView {
+    inner: JsonValue,
+}
+
+impl OwnedMapView<JsonValue> for OwnedJsonObjectView {
+    fn get(&self, name: &str) -> DataResult<&JsonValue> {
+        let JsonValue::Object(object) = &self.inner else {
+            return Err(DataError::unexpected_type("object"));
+        };
+        match object.get(name) {
+            Some(v) => Ok(v),
+            None => Err(DataError::key_not_found(name)),
+        }
+    }
+
+    fn take(self, name: &str) -> DataResult<JsonValue> {
+        let JsonValue::Object(mut object) = self.inner else {
+            return Err(DataError::unexpected_type("object"));
+        };
+        match object.remove(name) {
+            Some(v) => Ok(v),
+            None => Err(DataError::key_not_found(name)),
         }
     }
 }
