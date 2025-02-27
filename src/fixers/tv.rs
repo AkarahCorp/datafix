@@ -1,11 +1,9 @@
-use core::marker::PhantomData;
-
 use crate::{
     result::{DataError, DataResult},
     serialization::{CodecOps, MapViewMut, OwnedMapView},
 };
 
-use super::{Type, TypeRewriteRule};
+use super::Type;
 
 pub enum TyVal<OT, O: CodecOps<OT>> {
     Value(OT, O),
@@ -22,13 +20,6 @@ impl<OT: Clone, O: CodecOps<OT>> Clone for TyVal<OT, O> {
 }
 
 impl<OT, O: CodecOps<OT>> TyVal<OT, O> {
-    pub fn map<F: Fn(TyVal<OT, O>) -> TyVal<OT, O>>(function: F) -> impl TypeRewriteRule<OT, O> {
-        MapFieldRule {
-            function,
-            _phantom: PhantomData,
-        }
-    }
-
     pub fn take(self, field: &str) -> DataResult<TyVal<OT, O>> {
         match self {
             TyVal::Value(value, ops) => ops
@@ -75,30 +66,5 @@ impl<OT, O: CodecOps<OT>> TyVal<OT, O> {
             }
         }
         self
-    }
-}
-
-pub struct MapFieldRule<OT, O: CodecOps<OT>, F: Fn(TyVal<OT, O>) -> TyVal<OT, O>> {
-    function: F,
-    _phantom: PhantomData<(OT, O)>,
-}
-
-impl<OT, O: CodecOps<OT>, F: Fn(TyVal<OT, O>) -> TyVal<OT, O>> TypeRewriteRule<OT, O>
-    for MapFieldRule<OT, O, F>
-{
-    fn fix_data(&self, ops: O, value: OT) -> OT {
-        let result = (self.function)(TyVal::Value(value, ops));
-        match result {
-            TyVal::Value(value, _) => value,
-            TyVal::Type(_) => panic!(),
-        }
-    }
-
-    fn fix_type(&self, ty: Type) -> Type {
-        let result = (self.function)(TyVal::Type(ty));
-        match result {
-            TyVal::Value(_, _) => panic!(),
-            TyVal::Type(ty) => ty,
-        }
     }
 }
