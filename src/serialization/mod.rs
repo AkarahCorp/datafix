@@ -1,4 +1,5 @@
 mod builtins;
+mod dynamic;
 mod ops;
 
 use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
@@ -12,6 +13,7 @@ use builtins::{
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use either::Either;
 
+pub use dynamic::*;
 pub use ops::*;
 
 use crate::result::DataResult;
