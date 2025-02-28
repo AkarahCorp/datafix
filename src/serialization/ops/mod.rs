@@ -2,7 +2,7 @@ pub mod json;
 
 use alloc::{string::String, vec::Vec};
 
-use crate::result::DataResult;
+use crate::{fixers::TypeRewriteRule, result::DataResult};
 
 /// A [`CodecOps`] represents a way of converting Rust values into the target datatype and vice-versa.
 /// [`CodecOps`] is the recommended way to do this when interacting with [`Codec`].
@@ -83,14 +83,22 @@ pub trait CodecOps<T>: Clone {
 
         Ok(self.create_map(iter1))
     }
+
+    fn repair(&self, value: T, rule: impl TypeRewriteRule<T, Self>) -> T {
+        rule.fix_data(self.clone(), value)
+    }
 }
 
 /// Represents a lens into an map type from a [`CodecOps`].
 pub trait OwnedMapView<T> {
     /// Obtains a reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
     fn get(&self, name: &str) -> DataResult<&T>;
-    /// Obtains a reference to an underlying value. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
-    fn take(self, name: &str) -> DataResult<T>;
+    /// Obtains an underlying value and removes it from the underlying map. May return a DataError::KeyNotFoundInMap if the key is not present in the map.
+    fn take(&mut self, name: &str) -> DataResult<T>;
+    /// Sets a value in the underlying map.
+    fn set(&mut self, name: &str, value: T);
+    /// Returns an iterator to the entries inside, allowing it to be returned to a value using CodecOps::create_map.
+    fn entries(self) -> impl IntoIterator<Item = (String, T)>;
 }
 
 /// Represents a lens into an map type from a [`CodecOps`].

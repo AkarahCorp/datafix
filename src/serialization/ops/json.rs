@@ -202,14 +202,32 @@ impl OwnedMapView<JsonValue> for OwnedJsonObjectView {
         }
     }
 
-    fn take(self, name: &str) -> DataResult<JsonValue> {
-        let JsonValue::Object(mut object) = self.inner else {
+    fn take(&mut self, name: &str) -> DataResult<JsonValue> {
+        let JsonValue::Object(object) = &mut self.inner else {
             return Err(DataError::unexpected_type("object"));
         };
         match object.remove(name) {
             Some(v) => Ok(v),
             None => Err(DataError::key_not_found(name)),
         }
+    }
+
+    fn set(&mut self, name: &str, value: JsonValue) {
+        let JsonValue::Object(object) = &mut self.inner else {
+            return;
+        };
+        object.insert(name, value);
+    }
+
+    fn entries(self) -> impl IntoIterator<Item = (String, JsonValue)> {
+        let JsonValue::Object(object) = self.inner else {
+            return Vec::new();
+        };
+        let coll = object
+            .iter()
+            .map(|x| (x.0.to_string(), x.1.clone()))
+            .collect::<Vec<_>>();
+        coll
     }
 }
 

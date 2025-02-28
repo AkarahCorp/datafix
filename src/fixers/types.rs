@@ -64,6 +64,12 @@ impl ObjectType {
     pub fn insert(&mut self, field: &str, ty: Type) {
         self.fields.insert(field.to_string(), ty);
     }
+
+    pub fn remove(&mut self, field: &str) -> DataResult<Type> {
+        self.fields
+            .remove(field)
+            .ok_or(DataError::key_not_found(field))
+    }
 }
 
 impl Default for ObjectType {

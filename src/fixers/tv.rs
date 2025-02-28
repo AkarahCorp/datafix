@@ -3,7 +3,7 @@ use crate::{
     serialization::{CodecOps, MapViewMut, OwnedMapView},
 };
 
-use super::Type;
+use super::{Type, TypeRewriteRule};
 
 pub enum TyVal<OT, O: CodecOps<OT>> {
     Value(OT, O),
@@ -20,11 +20,15 @@ impl<OT: Clone, O: CodecOps<OT>> Clone for TyVal<OT, O> {
 }
 
 impl<OT, O: CodecOps<OT>> TyVal<OT, O> {
+    pub fn apply(self, rule: impl TypeRewriteRule<OT, O>) -> Self {
+        rule.fix_tyval(self)
+    }
+
     pub fn take(self, field: &str) -> DataResult<TyVal<OT, O>> {
         match self {
             TyVal::Value(value, ops) => ops
                 .take_map(value)
-                .and_then(|x| x.take(field))
+                .and_then(|mut x| x.take(field))
                 .map(|x| TyVal::Value(x, ops.clone())),
             TyVal::Type(ty) => match ty {
                 Type::Object(object_type) => object_type.get(field).map(|x| TyVal::Type(x)),
