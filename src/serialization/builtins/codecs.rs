@@ -15,7 +15,7 @@ use crate::{
 
 pub(crate) struct StringCodec;
 
-impl<U, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
+impl<U: Clone, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
     fn encode(&self, ops: &O, value: &String) -> DataResult<U> {
         Ok(ops.create_string(value))
     }
@@ -25,7 +25,7 @@ impl<U, O: CodecOps<U>> Codec<String, U, O> for StringCodec {
     }
 }
 
-impl<U, O: CodecOps<U>> DefaultCodec<U, O> for String {
+impl<U: Clone, O: CodecOps<U>> DefaultCodec<U, O> for String {
     fn codec() -> impl Codec<Self, U, O> {
         StringCodec
     }
@@ -33,7 +33,7 @@ impl<U, O: CodecOps<U>> DefaultCodec<U, O> for String {
 
 pub(crate) struct BoolCodec;
 
-impl<U, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
+impl<U: Clone, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
     fn encode(&self, ops: &O, value: &bool) -> DataResult<U> {
         Ok(ops.create_boolean(value))
     }
@@ -43,18 +43,18 @@ impl<U, O: CodecOps<U>> Codec<bool, U, O> for BoolCodec {
     }
 }
 
-impl<U, O: CodecOps<U>> DefaultCodec<U, O> for bool {
+impl<U: Clone, O: CodecOps<U>> DefaultCodec<U, O> for bool {
     fn codec() -> impl Codec<Self, U, O> {
         BoolCodec
     }
 }
 
-pub(crate) struct ListCodec<T, C: Codec<T, U, O>, U, O: CodecOps<U>> {
+pub(crate) struct ListCodec<T, C: Codec<T, U, O>, U: Clone, O: CodecOps<U>> {
     pub(crate) inner: C,
     pub(crate) _phantom: PhantomData<fn() -> (T, U, O)>,
 }
 
-impl<T, C: Codec<T, U, O>, U, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<T, C, U, O> {
+impl<T, C: Codec<T, U, O>, U: Clone, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<T, C, U, O> {
     fn encode(&self, ops: &O, value: &Vec<T>) -> DataResult<U> {
         let mut list = Vec::new();
         for element in value {
@@ -73,7 +73,7 @@ impl<T, C: Codec<T, U, O>, U, O: CodecOps<U>> Codec<Vec<T>, U, O> for ListCodec<
     }
 }
 
-pub(crate) struct XMapCodec<OLT, NT, C, F1, F2, U, O: CodecOps<U>>
+pub(crate) struct XMapCodec<OLT, NT, C, F1, F2, U: Clone, O: CodecOps<U>>
 where
     C: Codec<OLT, U, O>,
     F1: Fn(&OLT) -> NT,
@@ -85,7 +85,7 @@ where
     pub(crate) _phantom: PhantomData<fn() -> (OLT, NT, U, O)>,
 }
 
-impl<OLT, NT, C, F1, F2, OT, O: CodecOps<OT>> Codec<NT, OT, O>
+impl<OLT, NT, C, F1, F2, OT: Clone, O: CodecOps<OT>> Codec<NT, OT, O>
     for XMapCodec<OLT, NT, C, F1, F2, OT, O>
 where
     C: Codec<OLT, OT, O>,
@@ -101,13 +101,20 @@ where
     }
 }
 
-pub(crate) struct PairCodec<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> {
+pub(crate) struct PairCodec<
+    L,
+    R,
+    Lc: Codec<L, OT, O>,
+    Rc: Codec<R, OT, O>,
+    OT: Clone,
+    O: CodecOps<OT>,
+> {
     pub(crate) left: Lc,
     pub(crate) right: Rc,
     pub(crate) _phantom: PhantomData<fn() -> (L, R, OT, O)>,
 }
-impl<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT, O: CodecOps<OT>> Codec<(L, R), OT, O>
-    for PairCodec<L, R, Lc, Rc, OT, O>
+impl<L, R, Lc: Codec<L, OT, O>, Rc: Codec<R, OT, O>, OT: Clone, O: CodecOps<OT>>
+    Codec<(L, R), OT, O> for PairCodec<L, R, Lc, Rc, OT, O>
 {
     fn encode(&self, ops: &O, value: &(L, R)) -> DataResult<OT> {
         Ok(ops.create_map([
@@ -130,7 +137,7 @@ pub(crate) struct BoundedCodec<
     T: PartialOrd + Debug,
     C: Codec<T, OT, O>,
     R: RangeBounds<T>,
-    OT,
+    OT: Clone,
     O: CodecOps<OT>,
 > {
     pub(crate) codec: C,
@@ -138,7 +145,7 @@ pub(crate) struct BoundedCodec<
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT, O: CodecOps<OT>>
+impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT: Clone, O: CodecOps<OT>>
     Codec<T, OT, O> for BoundedCodec<T, C, R, OT, O>
 {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
@@ -167,11 +174,11 @@ impl<T: PartialOrd + Debug, C: Codec<T, OT, O>, R: RangeBounds<T>, OT, O: CodecO
     }
 }
 
-pub struct DynamicCodec<T, OT, O: CodecOps<OT>> {
+pub struct DynamicCodec<T, OT: Clone, O: CodecOps<OT>> {
     pub(crate) codec: Box<dyn Codec<T, OT, O>>,
 }
 
-impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
+impl<T, OT: Clone, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         self.codec.as_ref().encode(ops, value)
     }
@@ -181,11 +188,11 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for DynamicCodec<T, OT, O> {
     }
 }
 
-pub struct ArcCodec<T, OT, O: CodecOps<OT>> {
+pub struct ArcCodec<T, OT: Clone, O: CodecOps<OT>> {
     pub(crate) codec: Arc<dyn Codec<T, OT, O>>,
 }
 
-impl<T, OT, O: CodecOps<OT>> Clone for ArcCodec<T, OT, O> {
+impl<T, OT: Clone, O: CodecOps<OT>> Clone for ArcCodec<T, OT, O> {
     fn clone(&self) -> Self {
         Self {
             codec: self.codec.clone(),
@@ -193,7 +200,7 @@ impl<T, OT, O: CodecOps<OT>> Clone for ArcCodec<T, OT, O> {
     }
 }
 
-impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
+impl<T, OT: Clone, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         self.codec.as_ref().encode(ops, value)
     }
@@ -203,12 +210,12 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for ArcCodec<T, OT, O> {
     }
 }
 
-pub struct FnCodec<T, OT, O: CodecOps<OT>> {
+pub struct FnCodec<T, OT: Clone, O: CodecOps<OT>> {
     pub(crate) encode: Box<dyn Fn(&O, &T) -> DataResult<OT>>,
     pub(crate) decode: Box<dyn Fn(&O, &OT) -> DataResult<T>>,
 }
 
-impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
+impl<T, OT: Clone, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
         (self.encode)(ops, value)
     }
@@ -218,12 +225,14 @@ impl<T, OT, O: CodecOps<OT>> Codec<T, OT, O> for FnCodec<T, OT, O> {
     }
 }
 
-pub struct BoxCodec<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> {
+pub struct BoxCodec<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> {
     pub(crate) inner: C,
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O> for BoxCodec<T, OT, O, C> {
+impl<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O>
+    for BoxCodec<T, OT, O, C>
+{
     fn encode(&self, ops: &O, value: &Box<T>) -> DataResult<OT> {
         self.inner.encode(ops, value)
     }
@@ -233,13 +242,13 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<Box<T>, OT, O> for BoxCod
     }
 }
 
-pub struct TryElseCodec<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> {
+pub struct TryElseCodec<T, OT: Clone, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> {
     pub(crate) lc: Lc,
     pub(crate) rc: Rc,
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, OT, O>
+impl<T, OT: Clone, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, OT, O>
     for TryElseCodec<T, OT, O, Lc, Rc>
 {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
@@ -255,13 +264,14 @@ impl<T, OT, O: CodecOps<OT>, Lc: Codec<T, OT, O>, Rc: Codec<T, OT, O>> Codec<T, 
     }
 }
 
-pub struct EitherCodec<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>> {
+pub struct EitherCodec<T, OT: Clone, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
+{
     pub(crate) lc: Lc,
     pub(crate) rc: Rc,
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O, T2)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
+impl<T, OT: Clone, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
     Codec<Either<T, T2>, OT, O> for EitherCodec<T, OT, O, T2, Lc, Rc>
 {
     fn encode(&self, ops: &O, value: &Either<T, T2>) -> DataResult<OT> {
@@ -282,13 +292,13 @@ impl<T, OT, O: CodecOps<OT>, T2, Lc: Codec<T, OT, O>, Rc: Codec<T2, OT, O>>
     }
 }
 
-pub struct OrElseCodec<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> {
+pub struct OrElseCodec<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> {
     pub(crate) codec: C,
     pub(crate) default: F,
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
+impl<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
     for OrElseCodec<T, OT, O, C, F>
 {
     fn encode(&self, ops: &O, value: &T) -> DataResult<OT> {
@@ -305,7 +315,7 @@ impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>, F: Fn() -> T> Codec<T, OT, O>
 
 pub struct DispatchCodec<
     T,
-    OT,
+    OT: Clone,
     O: CodecOps<OT>,
     E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
     F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
@@ -317,7 +327,7 @@ pub struct DispatchCodec<
 
 impl<
     T,
-    OT,
+    OT: Clone,
     O: CodecOps<OT>,
     E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
     F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
@@ -337,11 +347,11 @@ macro_rules! make_numeric_codec {
         $({$t:ty, $struct_name:ident, $get_name:ident, $make_name:ident})*
         $(;)?
     ) => {
-        $(pub struct $struct_name<OT, O: CodecOps<OT>> {
+        $(pub struct $struct_name<OT: Clone, O: CodecOps<OT>> {
             _phantom: PhantomData<fn() -> (OT, O)>,
         }
 
-        impl<OT, O: CodecOps<OT>> Codec<$t, OT, O> for $struct_name<OT, O> {
+        impl<OT: Clone, O: CodecOps<OT>> Codec<$t, OT, O> for $struct_name<OT, O> {
             fn encode(&self, ops: &O, value: &$t) -> DataResult<OT> {
                 Ok(ops.$make_name(value))
             }
@@ -351,7 +361,7 @@ macro_rules! make_numeric_codec {
             }
         }
 
-        impl<OT, O: CodecOps<OT>> DefaultCodec<OT, O> for $t {
+        impl<OT: Clone, O: CodecOps<OT>> DefaultCodec<OT, O> for $t {
             fn codec() -> impl Codec<Self, OT, O> {
                 $struct_name {
                     _phantom: PhantomData,
@@ -553,7 +563,7 @@ mod tests {
         }
 
         impl UnknownType {
-            pub fn number_codec<OT: 'static, O: CodecOps<OT> + 'static>()
+            pub fn number_codec<OT: 'static + Clone, O: CodecOps<OT> + 'static>()
             -> DynamicCodec<Self, OT, O> {
                 f64::codec()
                     .xmap(
@@ -568,7 +578,7 @@ mod tests {
                     .dynamic()
             }
 
-            pub fn string_codec<OT: 'static, O: CodecOps<OT> + 'static>()
+            pub fn string_codec<OT: 'static + Clone, O: CodecOps<OT> + 'static>()
             -> DynamicCodec<Self, OT, O> {
                 String::codec()
                     .xmap(
@@ -583,7 +593,8 @@ mod tests {
                     .dynamic()
             }
 
-            pub fn codec<OT: 'static, O: CodecOps<OT> + 'static>() -> impl Codec<Self, OT, O> {
+            pub fn codec<OT: 'static + Clone, O: CodecOps<OT> + 'static>() -> impl Codec<Self, OT, O>
+            {
                 Codecs::dispatch(
                     |value: &UnknownType| match value {
                         UnknownType::Number(_) => Ok(UnknownType::number_codec()),

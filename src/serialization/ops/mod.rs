@@ -16,7 +16,7 @@ use crate::{fixers::TypeRewriteRule, result::DataResult};
 ///
 /// [`Codec`]: [`super::Codec`]
 /// [`Codec::decode`]: [`super::Codec::decode`]
-pub trait CodecOps<T>: Clone {
+pub trait CodecOps<T: Clone>: Clone {
     /// Creates a new numeric value of type `T`.
     fn create_double(&self, value: &f64) -> T;
     /// Creates a new numeric value of type `T`.

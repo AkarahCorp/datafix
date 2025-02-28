@@ -6,20 +6,20 @@ use crate::{
 };
 use alloc::string::String;
 
-pub trait MapFieldGetter<T, C: Codec<T, OT, O>, Struct, Rt, OT, O: CodecOps<OT>> {
+pub trait MapFieldGetter<T, C: Codec<T, OT, O>, Struct, Rt, OT: Clone, O: CodecOps<OT>> {
     fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>>;
     fn get_field(&self, ops: &O, value: &OT) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
 }
 
-pub struct OptionalField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
+pub struct OptionalField<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &Option<T>,
     pub(crate) codec: C,
     pub(crate) _phantom: PhantomData<fn() -> (OT, O)>,
 }
 
-impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
+impl<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>>
     MapFieldGetter<T, C, Struct, Option<T>, OT, O> for OptionalField<T, C, Struct, OT, O>
 {
     fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>> {
@@ -50,15 +50,15 @@ impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>>
     }
 }
 
-pub struct RecordField<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> {
+pub struct RecordField<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &T,
     pub(crate) codec: C,
     pub(crate) _phantom: PhantomData<fn() -> (T, OT, O)>,
 }
 
-impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> MapFieldGetter<T, C, Struct, T, OT, O>
-    for RecordField<T, C, Struct, OT, O>
+impl<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>>
+    MapFieldGetter<T, C, Struct, T, OT, O> for RecordField<T, C, Struct, OT, O>
 {
     fn get_field(&self, ops: &O, value: &OT) -> DataResult<T> {
         let obj = ops.get_map(value)?;
@@ -82,7 +82,7 @@ impl<T, C: Codec<T, OT, O>, Struct, OT, O: CodecOps<OT>> MapFieldGetter<T, C, St
 
 pub struct UnitCodec {}
 
-impl<OT, O: CodecOps<OT>> Codec<(), OT, O> for UnitCodec {
+impl<OT: Clone, O: CodecOps<OT>> Codec<(), OT, O> for UnitCodec {
     fn encode(&self, ops: &O, _value: &()) -> DataResult<OT> {
         Ok(ops.create_unit())
     }
@@ -104,7 +104,7 @@ macro_rules! record_codec {
                 $field_return_type,
                 $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
             ),*,
-            Struct, OT, O: CodecOps<OT>
+            Struct, OT: Clone, O: CodecOps<OT>
         > {
             $(pub(crate) $field: $field_type),*,
             pub(crate) into_struct: OnceCell<fn($($field_return_type),*) -> Struct>,
@@ -117,7 +117,7 @@ macro_rules! record_codec {
             $codec: Codec<$name, OT, O>,
             $field_return_type,
             $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
-        ),*, OT, O: CodecOps<OT>> Codec<Struct, OT, O> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct, OT, O> {
+        ),*, OT: Clone, O: CodecOps<OT>> Codec<Struct, OT, O> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct, OT, O> {
             fn encode(&self, ops: &O, value: &Struct) -> DataResult<OT> {
                 ops.create_map_special([
                     $(self.$field.encode_into(ops, value),)*

@@ -7,19 +7,19 @@ use crate::{
 
 use super::records::UnitCodec;
 
-pub struct MapCodecBuilder<C, OT, O: CodecOps<OT>> {
+pub struct MapCodecBuilder<C, OT: Clone, O: CodecOps<OT>> {
     pub(crate) codec: C,
     pub(crate) _phantom: PhantomData<fn() -> (OT, O)>,
 }
 
 #[doc(hidden)]
-impl<OT, O: CodecOps<OT>> Default for MapCodecBuilder<UnitCodec, OT, O> {
+impl<OT: Clone, O: CodecOps<OT>> Default for MapCodecBuilder<UnitCodec, OT, O> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<OT, O: CodecOps<OT>> MapCodecBuilder<UnitCodec, OT, O> {
+impl<OT: Clone, O: CodecOps<OT>> MapCodecBuilder<UnitCodec, OT, O> {
     pub fn new() -> MapCodecBuilder<UnitCodec, OT, O> {
         MapCodecBuilder {
             codec: UnitCodec {},
@@ -68,7 +68,7 @@ macro_rules! impl_record_codec_builder {
                 $field_return_type,
                 $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>
             ),*
-            , OT, O: CodecOps<OT>, Struct
+            , OT: Clone, O: CodecOps<OT>, Struct
         > MapCodecBuilder<
             $type<
                 $(
@@ -123,7 +123,7 @@ macro_rules! impl_record_codec_builder_last {
         fields: { $($field:ident: $name:ident[$codec:ident; $field_type:ident; $field_return_type:ident]),* }
     ) => {
         #[doc(hidden)]
-        impl<$($name, $codec: Codec<$name, OT, O>, $field_return_type, $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>),*, Struct, OT, O: CodecOps<OT>>
+        impl<$($name, $codec: Codec<$name, OT, O>, $field_return_type, $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, OT, O>),*, Struct, OT: Clone, O: CodecOps<OT>>
             MapCodecBuilder<$type<$($name, $codec, $field_return_type, $field_type),*, Struct, OT, O>, OT, O> {
             pub fn build(self, into_struct: fn($($field_return_type),*) -> Struct) -> impl Codec<Struct, OT, O> {
                 self.codec.into_struct.set(into_struct).unwrap();

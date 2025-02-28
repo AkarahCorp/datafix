@@ -9,7 +9,7 @@ use super::{Type, TypeRewriteRule};
 pub struct Rules;
 
 impl Rules {
-    pub fn new_field<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type>(
+    pub fn new_field<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type>(
         field_name: &str,
         value_function: F,
         type_function: G,
@@ -22,14 +22,16 @@ impl Rules {
         }
     }
 
-    pub fn remove_field<OT, O: CodecOps<OT>>(field_name: &str) -> impl TypeRewriteRule<OT, O> {
+    pub fn remove_field<OT: Clone, O: CodecOps<OT>>(
+        field_name: &str,
+    ) -> impl TypeRewriteRule<OT, O> {
         RemoveFieldRule {
             field_name: field_name.to_string(),
             _phantom: PhantomData,
         }
     }
 
-    pub fn apply_to_field<OT, O: CodecOps<OT>>(
+    pub fn apply_to_field<OT: Clone, O: CodecOps<OT>>(
         field_name: &str,
         rule: impl TypeRewriteRule<OT, O>,
     ) -> impl TypeRewriteRule<OT, O> {
@@ -41,14 +43,14 @@ impl Rules {
     }
 }
 
-pub struct NewFieldRule<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> {
+pub struct NewFieldRule<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> {
     field_name: String,
     value_function: F,
     type_function: G,
     _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> TypeRewriteRule<OT, O>
+impl<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> TypeRewriteRule<OT, O>
     for NewFieldRule<OT, O, F, G>
 {
     fn fix_data(&self, ops: O, mut value: OT) -> OT {
@@ -72,13 +74,18 @@ impl<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> TypeRewriteRul
     }
 }
 
-pub struct AndThenRule<OT, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<OT, O>> {
+pub struct AndThenRule<
+    OT: Clone,
+    O: CodecOps<OT>,
+    L: TypeRewriteRule<OT, O>,
+    R: TypeRewriteRule<OT, O>,
+> {
     pub(crate) left: L,
     pub(crate) right: R,
     pub(crate) _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<OT, O>>
+impl<OT: Clone, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<OT, O>>
     TypeRewriteRule<OT, O> for AndThenRule<OT, O, L, R>
 {
     fn fix_data(&self, ops: O, value: OT) -> OT {
@@ -91,13 +98,13 @@ impl<OT, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<OT, O>>
     }
 }
 
-pub struct ApplyRuleToFieldRule<OT, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> {
+pub struct ApplyRuleToFieldRule<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> {
     field_name: String,
     rule: R,
     _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, O>
+impl<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, O>
     for ApplyRuleToFieldRule<OT, O, R>
 {
     fn fix_data(&self, ops: O, value: OT) -> OT {
@@ -124,12 +131,12 @@ impl<OT, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, O>
     }
 }
 
-pub struct RemoveFieldRule<OT, O: CodecOps<OT>> {
+pub struct RemoveFieldRule<OT: Clone, O: CodecOps<OT>> {
     field_name: String,
     _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT, O: CodecOps<OT>> TypeRewriteRule<OT, O> for RemoveFieldRule<OT, O> {
+impl<OT: Clone, O: CodecOps<OT>> TypeRewriteRule<OT, O> for RemoveFieldRule<OT, O> {
     fn fix_data(&self, ops: O, mut value: OT) -> OT {
         {
             if let Ok(mut obj) = ops.get_map_mut(&mut value) {

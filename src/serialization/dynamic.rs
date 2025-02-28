@@ -1,11 +1,11 @@
 use super::CodecOps;
 
-pub struct Dynamic<T, O: CodecOps<T>> {
+pub struct Dynamic<T: Clone, O: CodecOps<T>> {
     value: T,
     ops: O,
 }
 
-impl<T, O: CodecOps<T>> Dynamic<T, O> {
+impl<T: Clone, O: CodecOps<T>> Dynamic<T, O> {
     pub fn new(value: T, ops: O) -> Dynamic<T, O> {
         Dynamic { value, ops }
     }

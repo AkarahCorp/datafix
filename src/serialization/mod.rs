@@ -35,7 +35,7 @@ pub use builtins::record_builder::MapCodecBuilder;
     label = "{Self} must be a Codec<{Type}>",
     note = "some types provide an implementation of DefaultCodec::codec()"
 )]
-pub trait Codec<Type, OpsType, Ops: CodecOps<OpsType>> {
+pub trait Codec<Type, OpsType: Clone, Ops: CodecOps<OpsType>> {
     /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
     fn encode(&self, ops: &Ops, value: &Type) -> DataResult<OpsType>;
@@ -48,7 +48,7 @@ pub trait Codec<Type, OpsType, Ops: CodecOps<OpsType>> {
 /// - Turn into record fields
 /// - Convert between types
 /// - Have a list codec that contains the type of the provided codec
-pub trait CodecAdapters<T, OT, O: CodecOps<OT>>
+pub trait CodecAdapters<T, OT: Clone, O: CodecOps<OT>>
 where
     Self: Sized + Codec<T, OT, O>,
 {
@@ -175,11 +175,11 @@ where
     }
 }
 
-impl<T, OT, O: CodecOps<OT>, C: Codec<T, OT, O>> CodecAdapters<T, OT, O> for C {}
+impl<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> CodecAdapters<T, OT, O> for C {}
 
 /// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible.
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.
-pub trait DefaultCodec<OT, O: CodecOps<OT>>
+pub trait DefaultCodec<OT: Clone, O: CodecOps<OT>>
 where
     Self: Sized,
 {
@@ -210,7 +210,7 @@ impl Codecs {
     /// ```
     pub fn recursive<
         T: 'static,
-        OT: 'static,
+        OT: Clone + 'static,
         O: CodecOps<OT> + 'static,
         F: Fn(DynamicCodec<T, OT, O>) -> Oc,
         Oc: Codec<T, OT, O> + 'static,
@@ -250,7 +250,7 @@ impl Codecs {
     pub fn either<
         T: 'static,
         T2: 'static,
-        OT: 'static,
+        OT: Clone + 'static,
         O: CodecOps<OT> + 'static,
         Lc: Codec<T, OT, O> + 'static,
         Rc: Codec<T2, OT, O> + 'static,
@@ -267,7 +267,7 @@ impl Codecs {
 
     pub fn dispatch<
         T,
-        OT,
+        OT: Clone,
         O: CodecOps<OT>,
         E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
         F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
@@ -282,7 +282,7 @@ impl Codecs {
         }
     }
 
-    pub fn unit<OT, O: CodecOps<OT>>() -> impl Codec<(), OT, O> {
+    pub fn unit<OT: Clone, O: CodecOps<OT>>() -> impl Codec<(), OT, O> {
         UnitCodec {}
     }
 }
