@@ -18,7 +18,7 @@ impl Rules {
         }
     }
 
-    pub fn new_field<OT, O: CodecOps<OT>, F: Fn() -> OT, G: Fn() -> Type>(
+    pub fn new_field<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type>(
         field_name: &str,
         value_function: F,
         type_function: G,
@@ -75,20 +75,21 @@ impl<OT, O: CodecOps<OT>, F: Fn(TyVal<OT, O>) -> TyVal<OT, O>> TypeRewriteRule<O
     }
 }
 
-pub struct NewFieldRule<OT, O: CodecOps<OT>, F: Fn() -> OT, G: Fn() -> Type> {
+pub struct NewFieldRule<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> {
     field_name: String,
     value_function: F,
     type_function: G,
     _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT, O: CodecOps<OT>, F: Fn() -> OT, G: Fn() -> Type> TypeRewriteRule<OT, O>
+impl<OT, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> TypeRewriteRule<OT, O>
     for NewFieldRule<OT, O, F, G>
 {
     fn fix_data(&self, ops: O, mut value: OT) -> OT {
         {
+            let result = (self.value_function)(&value);
             if let Ok(mut obj) = ops.get_map_mut(&mut value) {
-                obj.set(&self.field_name, (self.value_function)());
+                obj.set(&self.field_name, result);
             }
         }
         value
@@ -96,8 +97,9 @@ impl<OT, O: CodecOps<OT>, F: Fn() -> OT, G: Fn() -> Type> TypeRewriteRule<OT, O>
 
     fn fix_type(&self, mut ty: Type) -> Type {
         {
+            let result = (self.type_function)(&ty);
             if let Type::Object(obj) = &mut ty {
-                obj.insert(&self.field_name, (self.type_function)());
+                obj.insert(&self.field_name, result);
             }
         }
         ty

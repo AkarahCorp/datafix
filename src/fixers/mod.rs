@@ -48,7 +48,7 @@ mod tests {
         let mut object = JsonValue::new_object();
         let _ = object.insert("x", 10);
 
-        let rule = Rules::new_field("y", || JsonValue::Number(20.into()), || Type::Int);
+        let rule = Rules::new_field("y", |_ctx| JsonValue::Number(20.into()), |_ctx| Type::Int);
 
         let fixed = JsonOps.repair(object, rule);
         assert_eq!(fixed, {
@@ -60,12 +60,35 @@ mod tests {
     }
 
     #[test]
+    pub fn copy_field_with_context() {
+        let mut object = JsonValue::new_object();
+        let _ = object.insert("x", 10);
+
+        let rule = Rules::new_field(
+            "y",
+            |ctx| match ctx {
+                JsonValue::Object(object) => object.get("x").unwrap().clone(),
+                _ => JsonValue::Null,
+            },
+            |_ctx| Type::Int,
+        );
+
+        let fixed = JsonOps.repair(object, rule);
+        assert_eq!(fixed, {
+            let mut obj = JsonValue::new_object();
+            let _ = obj.insert("x", 10);
+            let _ = obj.insert("y", 10);
+            obj
+        })
+    }
+
+    #[test]
     pub fn and_then_rule() {
         let mut object = JsonValue::new_object();
         let _ = object.insert("x", 10);
 
-        let rule = Rules::new_field("y", || JsonValue::Number(20.into()), || Type::Int).and_then(
-            Rules::new_field("z", || JsonValue::Number(30.into()), || Type::Long),
+        let rule = Rules::new_field("y", |_| JsonValue::Number(20.into()), |_| Type::Int).and_then(
+            Rules::new_field("z", |_ctx| JsonValue::Number(30.into()), |_ctx| Type::Long),
         );
 
         let fixed = JsonOps.repair(object, rule);
@@ -99,7 +122,7 @@ mod tests {
 
         let rule = Rules::apply_to_field(
             "i",
-            Rules::new_field("b", || JsonValue::Number(20.into()), || Type::Int),
+            Rules::new_field("b", |_ctx| JsonValue::Number(20.into()), |_ctx| Type::Int),
         );
 
         let fixed = JsonOps.repair(object, rule);
