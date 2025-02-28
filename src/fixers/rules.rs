@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use alloc::string::{String, ToString};
 
-use crate::serialization::{CodecOps, Dynamic, MapViewMut, OwnedMapView};
+use crate::serialization::{CodecOps, Dynamic, MapView, MapViewMut};
 
 use super::{Type, TypeRewriteRule};
 
@@ -117,16 +117,15 @@ pub struct ApplyRuleToFieldRule<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<O
 impl<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, O>
     for ApplyRuleToFieldRule<OT, O, R>
 {
-    fn fix_data(&self, ops: O, value: OT) -> OT {
+    fn fix_data(&self, ops: O, mut value: OT) -> OT {
         if ops.get_map(&value).is_ok() {
-            let mut object = ops.take_map(value).unwrap();
-            if let Ok(field_value) = object.take(&self.field_name) {
+            let mut object = ops.get_map_mut(&mut value).unwrap();
+            if let Ok(field_value) = object.get(&self.field_name) {
                 object.set(
                     &self.field_name,
-                    self.rule.fix_data(ops.clone(), field_value),
+                    self.rule.fix_data(ops.clone(), field_value.clone()),
                 );
             }
-            return ops.create_map(object.entries());
         }
         value
     }
