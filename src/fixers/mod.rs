@@ -57,7 +57,7 @@ mod tests {
 
         let rule = Rules::new_field(
             "y",
-            |ctx| ctx.get("x").unwrap_or(ctx.create_int(0)),
+            |ctx| ctx.get_field("x").unwrap_or(ctx.create_int(0)),
             |_ctx| Type::Int,
         );
 
