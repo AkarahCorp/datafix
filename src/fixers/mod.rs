@@ -39,7 +39,7 @@ mod tests {
         let mut object = JsonValue::new_object();
         let _ = object.insert("x", 10);
 
-        let rule = Rules::new_field("y", |_ctx| JsonValue::Number(20.into()), |_ctx| Type::Int);
+        let rule = Rules::new_field("y", |ctx| ctx.create_int(20), |_ctx| Type::Int);
 
         let fixed = JsonOps.repair(object, rule);
         assert_eq!(fixed, {
@@ -57,10 +57,7 @@ mod tests {
 
         let rule = Rules::new_field(
             "y",
-            |ctx| match ctx {
-                JsonValue::Object(object) => object.get("x").unwrap().clone(),
-                _ => JsonValue::Null,
-            },
+            |ctx| ctx.get("x").unwrap_or(ctx.create_int(0)),
             |_ctx| Type::Int,
         );
 
@@ -78,8 +75,8 @@ mod tests {
         let mut object = JsonValue::new_object();
         let _ = object.insert("x", 10);
 
-        let rule = Rules::new_field("y", |_| JsonValue::Number(20.into()), |_| Type::Int).and_then(
-            Rules::new_field("z", |_ctx| JsonValue::Number(30.into()), |_ctx| Type::Long),
+        let rule = Rules::new_field("y", |ctx| ctx.create_int(20), |_| Type::Int).and_then(
+            Rules::new_field("z", |ctx| ctx.create_int(30), |_ctx| Type::Int),
         );
 
         let fixed = JsonOps.repair(object, rule);
@@ -113,7 +110,7 @@ mod tests {
 
         let rule = Rules::apply_to_field(
             "i",
-            Rules::new_field("b", |_ctx| JsonValue::Number(20.into()), |_ctx| Type::Int),
+            Rules::new_field("b", |ctx| ctx.create_int(20), |_ctx| Type::Int),
         );
 
         let fixed = JsonOps.repair(object, rule);

@@ -2,14 +2,19 @@ use core::marker::PhantomData;
 
 use alloc::string::{String, ToString};
 
-use crate::serialization::{CodecOps, MapViewMut, OwnedMapView};
+use crate::serialization::{CodecOps, Dynamic, MapViewMut, OwnedMapView};
 
 use super::{Type, TypeRewriteRule};
 
 pub struct Rules;
 
 impl Rules {
-    pub fn new_field<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type>(
+    pub fn new_field<
+        OT: Clone,
+        O: CodecOps<OT>,
+        F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>,
+        G: Fn(&Type) -> Type,
+    >(
         field_name: &str,
         value_function: F,
         type_function: G,
@@ -43,22 +48,27 @@ impl Rules {
     }
 }
 
-pub struct NewFieldRule<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> {
+pub struct NewFieldRule<
+    OT: Clone,
+    O: CodecOps<OT>,
+    F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>,
+    G: Fn(&Type) -> Type,
+> {
     field_name: String,
     value_function: F,
     type_function: G,
     _phantom: PhantomData<(OT, O)>,
 }
 
-impl<OT: Clone, O: CodecOps<OT>, F: Fn(&OT) -> OT, G: Fn(&Type) -> Type> TypeRewriteRule<OT, O>
-    for NewFieldRule<OT, O, F, G>
+impl<OT: Clone, O: CodecOps<OT>, F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>, G: Fn(&Type) -> Type>
+    TypeRewriteRule<OT, O> for NewFieldRule<OT, O, F, G>
 {
-    fn fix_data(&self, ops: O, mut value: OT) -> OT {
-        {
-            let result = (self.value_function)(&value);
-            if let Ok(mut obj) = ops.get_map_mut(&mut value) {
-                obj.set(&self.field_name, result);
-            }
+    fn fix_data(&self, ops: O, value: OT) -> OT {
+        let dynamic = Dynamic::new(value, ops.clone());
+        let result = (self.value_function)(&dynamic);
+        let mut value = dynamic.into_inner();
+        if let Ok(mut obj) = ops.get_map_mut(&mut value) {
+            obj.set(&self.field_name, result.into_inner());
         }
         value
     }
