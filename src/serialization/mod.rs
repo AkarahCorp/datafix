@@ -8,7 +8,7 @@ use builtins::{
         ArcCodec, BoundedCodec, BoxCodec, DispatchCodec, DynamicCodec, EitherCodec, FnCodec,
         ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
     },
-    records::{OptionalField, RecordField, UnitCodec},
+    records::{DefaultField, OptionalField, RecordField, UnitCodec},
 };
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use either::Either;
@@ -76,6 +76,22 @@ where
             field_name: name.into(),
             getter,
             codec: self,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Returns this codec, that is intended for an optional field of a record, except with a fallback default function.
+    fn default_field_of<Struct, F: Fn() -> T>(
+        self,
+        name: impl Into<String>,
+        getter: fn(&Struct) -> &T,
+        default: F,
+    ) -> DefaultField<T, Self, Struct, OT, O, F> {
+        DefaultField {
+            field_name: name.into(),
+            getter,
+            codec: self,
+            default,
             _phantom: PhantomData,
         }
     }

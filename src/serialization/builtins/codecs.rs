@@ -431,6 +431,7 @@ mod tests {
         string::{String, ToString},
         vec,
     };
+    use json::JsonValue;
 
     use crate::{
         result::DataError,
@@ -556,6 +557,27 @@ mod tests {
         let encoded = codec.encode(&JsonOps, &value).unwrap();
         let decoded = codec.decode(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
+    }
+
+    #[test]
+    pub fn default_codec() {
+        #[derive(Clone, Debug, PartialEq)]
+        struct Wrapper {
+            value: f64,
+        }
+
+        let codec = MapCodecBuilder::new()
+            .field(f64::codec().default_field_of("value", |w: &Wrapper| &w.value, || 12.1))
+            .build(|value| Wrapper { value });
+
+        let value = Wrapper { value: 0.0 };
+        let encoded = codec.encode(&JsonOps, &value).unwrap();
+        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        assert_eq!(value, decoded);
+
+        let empty_obj = JsonValue::new_object();
+        let decoded = codec.decode(&JsonOps, &empty_obj).unwrap();
+        assert_eq!(Wrapper { value: 12.1 }, decoded);
     }
 
     #[test]

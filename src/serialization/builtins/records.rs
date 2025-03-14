@@ -50,6 +50,43 @@ impl<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>>
     }
 }
 
+pub struct DefaultField<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>, F: Fn() -> T> {
+    pub(crate) field_name: String,
+    pub(crate) getter: fn(&Struct) -> &T,
+    pub(crate) codec: C,
+    pub(crate) default: F,
+    pub(crate) _phantom: PhantomData<fn() -> (OT, O)>,
+}
+
+impl<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>, F: Fn() -> T>
+    MapFieldGetter<T, C, Struct, T, OT, O> for DefaultField<T, C, Struct, OT, O, F>
+{
+    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, OT)>> {
+        let value = (self.getter)(value);
+        let e = self.codec.encode(ops, value);
+        let e = match e {
+            Ok(v) => v,
+            Err(e) => return Some(Err(e)),
+        };
+        Some(Ok((self.field_name.clone(), e)))
+    }
+
+    fn get_field(&self, ops: &O, value: &OT) -> DataResult<T> {
+        let obj = ops.get_map(value)?;
+        match obj.get(&self.field_name) {
+            Ok(field) => Ok(self.codec.decode(ops, field)?),
+            Err(_) => {
+                let default_value = (self.default)();
+                Ok(default_value)
+            }
+        }
+    }
+
+    fn field_name(&self) -> &str {
+        &self.field_name
+    }
+}
+
 pub struct RecordField<T, C: Codec<T, OT, O>, Struct, OT: Clone, O: CodecOps<OT>> {
     pub(crate) field_name: String,
     pub(crate) getter: fn(&Struct) -> &T,
