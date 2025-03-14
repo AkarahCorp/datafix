@@ -2,6 +2,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 
 use alloc::{
     boxed::Box,
+    collections::btree_map::BTreeMap,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -381,10 +382,52 @@ make_numeric_codec! {
     {i64, I64Codec, get_long, create_long}
 }
 
+pub struct UntypedMapCodec<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> {
+    codec: C,
+    _phantom: PhantomData<(T, OT, O, C)>,
+}
+
+impl<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> Codec<BTreeMap<String, T>, OT, O>
+    for UntypedMapCodec<T, OT, O, C>
+{
+    fn encode(&self, ops: &O, value: &BTreeMap<String, T>) -> DataResult<OT> {
+        let entries = value
+            .iter()
+            .map(|x| (x.0.clone(), self.codec.encode(ops, x.1).unwrap()))
+            .collect::<Vec<_>>();
+        Ok(ops.create_map(entries))
+    }
+
+    fn decode(&self, ops: &O, value: &OT) -> DataResult<BTreeMap<String, T>> {
+        let mut map = BTreeMap::new();
+        let Ok(view) = ops.get_map(value) else {
+            return Ok(map);
+        };
+        for key in view.keys() {
+            let value = view.get(&key)?;
+            let decode = self.codec.decode(ops, value)?;
+            map.insert(key, decode);
+        }
+        Ok(map)
+    }
+}
+
+impl<T: DefaultCodec<OT, O>, OT: Clone, O: CodecOps<OT>> DefaultCodec<OT, O>
+    for BTreeMap<String, T>
+{
+    fn codec() -> impl Codec<Self, OT, O> {
+        UntypedMapCodec {
+            codec: T::codec(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{
         boxed::Box,
+        collections::btree_map::BTreeMap,
         string::{String, ToString},
         vec,
     };
@@ -622,5 +665,18 @@ mod tests {
         let encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
         let decoded = UnknownType::codec().decode(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
+    }
+
+    #[test]
+    fn untyped_map_codec() {
+        let mut map = BTreeMap::new();
+        map.insert("x".to_string(), 10.0);
+        map.insert("y".to_string(), 20.0);
+        map.insert("z".to_string(), 30.0);
+
+        let encoded = BTreeMap::codec().encode(&JsonOps, &map).unwrap();
+        let decoded = BTreeMap::codec().decode(&JsonOps, &encoded).unwrap();
+
+        assert_eq!(map, decoded);
     }
 }
