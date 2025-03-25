@@ -9,16 +9,11 @@ use super::{Type, TypeRewriteRule};
 pub struct Rules;
 
 impl Rules {
-    pub fn new_field<
-        OT: Clone,
-        O: CodecOps<OT>,
-        F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>,
-        G: Fn(&Type) -> Type,
-    >(
+    pub fn new_field<O: CodecOps, F: Fn(&Dynamic<O>) -> Dynamic<O>, G: Fn(&Type) -> Type>(
         field_name: &str,
         value_function: F,
         type_function: G,
-    ) -> impl TypeRewriteRule<OT, O> {
+    ) -> impl TypeRewriteRule<O> {
         NewFieldRule {
             field_name: field_name.to_string(),
             value_function,
@@ -27,19 +22,17 @@ impl Rules {
         }
     }
 
-    pub fn remove_field<OT: Clone, O: CodecOps<OT>>(
-        field_name: &str,
-    ) -> impl TypeRewriteRule<OT, O> {
+    pub fn remove_field<O: CodecOps>(field_name: &str) -> impl TypeRewriteRule<O> {
         RemoveFieldRule {
             field_name: field_name.to_string(),
             _phantom: PhantomData,
         }
     }
 
-    pub fn apply_to_field<OT: Clone, O: CodecOps<OT>>(
+    pub fn apply_to_field<O: CodecOps>(
         field_name: &str,
-        rule: impl TypeRewriteRule<OT, O>,
-    ) -> impl TypeRewriteRule<OT, O> {
+        rule: impl TypeRewriteRule<O>,
+    ) -> impl TypeRewriteRule<O> {
         ApplyRuleToFieldRule {
             field_name: field_name.to_string(),
             rule,
@@ -48,22 +41,17 @@ impl Rules {
     }
 }
 
-pub struct NewFieldRule<
-    OT: Clone,
-    O: CodecOps<OT>,
-    F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>,
-    G: Fn(&Type) -> Type,
-> {
+pub struct NewFieldRule<O: CodecOps, F: Fn(&Dynamic<O>) -> Dynamic<O>, G: Fn(&Type) -> Type> {
     field_name: String,
     value_function: F,
     type_function: G,
-    _phantom: PhantomData<(OT, O)>,
+    _phantom: PhantomData<O>,
 }
 
-impl<OT: Clone, O: CodecOps<OT>, F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>, G: Fn(&Type) -> Type>
-    TypeRewriteRule<OT, O> for NewFieldRule<OT, O, F, G>
+impl<O: CodecOps, F: Fn(&Dynamic<O>) -> Dynamic<O>, G: Fn(&Type) -> Type> TypeRewriteRule<O>
+    for NewFieldRule<O, F, G>
 {
-    fn fix_data(&self, ops: O, value: OT) -> OT {
+    fn fix_data(&self, ops: O, value: O::T) -> O::T {
         let dynamic = Dynamic::new(value, ops.clone());
         let result = (self.value_function)(&dynamic);
         let mut value = dynamic.into_inner();
@@ -84,21 +72,16 @@ impl<OT: Clone, O: CodecOps<OT>, F: Fn(&Dynamic<OT, O>) -> Dynamic<OT, O>, G: Fn
     }
 }
 
-pub struct AndThenRule<
-    OT: Clone,
-    O: CodecOps<OT>,
-    L: TypeRewriteRule<OT, O>,
-    R: TypeRewriteRule<OT, O>,
-> {
+pub struct AndThenRule<O: CodecOps, L: TypeRewriteRule<O>, R: TypeRewriteRule<O>> {
     pub(crate) left: L,
     pub(crate) right: R,
-    pub(crate) _phantom: PhantomData<(OT, O)>,
+    pub(crate) _phantom: PhantomData<O>,
 }
 
-impl<OT: Clone, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<OT, O>>
-    TypeRewriteRule<OT, O> for AndThenRule<OT, O, L, R>
+impl<O: CodecOps, L: TypeRewriteRule<O>, R: TypeRewriteRule<O>> TypeRewriteRule<O>
+    for AndThenRule<O, L, R>
 {
-    fn fix_data(&self, ops: O, value: OT) -> OT {
+    fn fix_data(&self, ops: O, value: O::T) -> O::T {
         self.right
             .fix_data(ops.clone(), self.left.fix_data(ops, value))
     }
@@ -108,16 +91,14 @@ impl<OT: Clone, O: CodecOps<OT>, L: TypeRewriteRule<OT, O>, R: TypeRewriteRule<O
     }
 }
 
-pub struct ApplyRuleToFieldRule<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> {
+pub struct ApplyRuleToFieldRule<O: CodecOps, R: TypeRewriteRule<O>> {
     field_name: String,
     rule: R,
-    _phantom: PhantomData<(OT, O)>,
+    _phantom: PhantomData<O>,
 }
 
-impl<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, O>
-    for ApplyRuleToFieldRule<OT, O, R>
-{
-    fn fix_data(&self, ops: O, mut value: OT) -> OT {
+impl<O: CodecOps, R: TypeRewriteRule<O>> TypeRewriteRule<O> for ApplyRuleToFieldRule<O, R> {
+    fn fix_data(&self, ops: O, mut value: O::T) -> O::T {
         if ops.get_map(&value).is_ok() {
             let mut object = ops.get_map_mut(&mut value).unwrap();
             if let Ok(field_value) = object.get(&self.field_name) {
@@ -140,13 +121,13 @@ impl<OT: Clone, O: CodecOps<OT>, R: TypeRewriteRule<OT, O>> TypeRewriteRule<OT, 
     }
 }
 
-pub struct RemoveFieldRule<OT: Clone, O: CodecOps<OT>> {
+pub struct RemoveFieldRule<O: CodecOps> {
     field_name: String,
-    _phantom: PhantomData<(OT, O)>,
+    _phantom: PhantomData<O>,
 }
 
-impl<OT: Clone, O: CodecOps<OT>> TypeRewriteRule<OT, O> for RemoveFieldRule<OT, O> {
-    fn fix_data(&self, ops: O, mut value: OT) -> OT {
+impl<O: CodecOps> TypeRewriteRule<O> for RemoveFieldRule<O> {
+    fn fix_data(&self, ops: O, mut value: O::T) -> O::T {
         {
             if let Ok(mut obj) = ops.get_map_mut(&mut value) {
                 let _ = obj.remove(&self.field_name);

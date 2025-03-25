@@ -14,7 +14,8 @@ use super::{ListViewMut, MapViewMut};
 #[derive(Debug, Clone)]
 pub struct JsonOps;
 
-impl CodecOps<JsonValue> for JsonOps {
+impl CodecOps for JsonOps {
+    type T = JsonValue;
     fn create_double(&self, value: &f64) -> JsonValue {
         JsonValue::Number(Number::from(*value))
     }

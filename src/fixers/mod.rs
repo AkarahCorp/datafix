@@ -7,11 +7,11 @@ pub use rules::*;
 
 use crate::serialization::CodecOps;
 
-pub trait TypeRewriteRule<OT: Clone, O: CodecOps<OT>> {
-    fn fix_data(&self, ops: O, value: OT) -> OT;
+pub trait TypeRewriteRule<O: CodecOps> {
+    fn fix_data(&self, ops: O, value: O::T) -> O::T;
     fn fix_type(&self, ty: Type) -> Type;
 
-    fn and_then(self, other: impl TypeRewriteRule<OT, O>) -> impl TypeRewriteRule<OT, O>
+    fn and_then(self, other: impl TypeRewriteRule<O>) -> impl TypeRewriteRule<O>
     where
         Self: Sized,
     {

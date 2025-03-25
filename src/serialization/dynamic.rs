@@ -3,13 +3,13 @@ use crate::result::DataResult;
 use super::{CodecOps, MapView, MapViewMut};
 
 #[derive(Debug, Clone)]
-pub struct Dynamic<T: Clone, O: CodecOps<T>> {
-    value: T,
+pub struct Dynamic<O: CodecOps> {
+    value: O::T,
     ops: O,
 }
 
-impl<T: Clone, O: CodecOps<T>> Dynamic<T, O> {
-    pub fn new(value: T, ops: O) -> Dynamic<T, O> {
+impl<O: CodecOps> Dynamic<O> {
+    pub fn new(value: O::T, ops: O) -> Dynamic<O> {
         Dynamic { value, ops }
     }
 
@@ -17,15 +17,15 @@ impl<T: Clone, O: CodecOps<T>> Dynamic<T, O> {
         self.ops.clone()
     }
 
-    pub fn value(&self) -> &T {
+    pub fn value(&self) -> &O::T {
         &self.value
     }
 
-    pub fn value_mut(&mut self) -> &mut T {
+    pub fn value_mut(&mut self) -> &mut O::T {
         &mut self.value
     }
 
-    pub fn into_inner(self) -> T {
+    pub fn into_inner(self) -> O::T {
         self.value
     }
 
@@ -102,7 +102,7 @@ impl<T: Clone, O: CodecOps<T>> Dynamic<T, O> {
         ))
     }
 
-    pub fn insert_field(&mut self, field: &str, value: T) -> DataResult<()> {
+    pub fn insert_field(&mut self, field: &str, value: O::T) -> DataResult<()> {
         self.ops.get_map_mut(&mut self.value)?.set(field, value);
         Ok(())
     }

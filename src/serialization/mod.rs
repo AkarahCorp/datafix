@@ -35,29 +35,29 @@ pub use builtins::record_builder::MapCodecBuilder;
     label = "{Self} must be a Codec<{Type}>",
     note = "some types provide an implementation of DefaultCodec::codec()"
 )]
-pub trait Codec<Type, OpsType: Clone, Ops: CodecOps<OpsType>> {
+pub trait Codec<Type, Ops: CodecOps> {
     /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
-    fn encode(&self, ops: &Ops, value: &Type) -> DataResult<OpsType>;
+    fn encode(&self, ops: &Ops, value: &Type) -> DataResult<Ops::T>;
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn decode(&self, ops: &Ops, value: &OpsType) -> DataResult<Type>;
+    fn decode(&self, ops: &Ops, value: &Ops::T) -> DataResult<Type>;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
 /// - Turn into record fields
 /// - Convert between types
 /// - Have a list codec that contains the type of the provided codec
-pub trait CodecAdapters<T, OT: Clone, O: CodecOps<OT>>
+pub trait CodecAdapters<T, O: CodecOps>
 where
-    Self: Sized + Codec<T, OT, O>,
+    Self: Sized + Codec<T, O>,
 {
     /// Returns a codec of this type that is intended for a field of a record.
     fn field_of<Struct>(
         self,
         name: impl Into<String>,
         getter: fn(&Struct) -> &T,
-    ) -> RecordField<T, Self, Struct, OT, O> {
+    ) -> RecordField<T, Self, Struct, O> {
         RecordField {
             field_name: name.into(),
             getter,
@@ -71,7 +71,7 @@ where
         self,
         name: impl Into<String>,
         getter: fn(&Struct) -> &Option<T>,
-    ) -> OptionalField<T, Self, Struct, OT, O> {
+    ) -> OptionalField<T, Self, Struct, O> {
         OptionalField {
             field_name: name.into(),
             getter,
@@ -86,7 +86,7 @@ where
         name: impl Into<String>,
         getter: fn(&Struct) -> &T,
         default: F,
-    ) -> DefaultField<T, Self, Struct, OT, O, F> {
+    ) -> DefaultField<T, Self, Struct, O, F> {
         DefaultField {
             field_name: name.into(),
             getter,
@@ -97,7 +97,7 @@ where
     }
 
     /// Returns a codec that is a list of this codec.
-    fn list_of(self) -> impl Codec<Vec<T>, OT, O> {
+    fn list_of(self) -> impl Codec<Vec<T>, O> {
         ListCodec {
             inner: self,
             _phantom: PhantomData,
@@ -106,7 +106,7 @@ where
 
     /// Maps the output of this codec between 2 transformation functions.
     /// Implementors should hold the invariant of `F(G(x)) = x` such that the functions can be used to freely convert between the two types.
-    fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U, OT, O>
+    fn xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U, O>
     where
         F: Fn(&T) -> U,
         G: Fn(&U) -> T,
@@ -120,7 +120,7 @@ where
     }
 
     /// This returns a Codec that represents a pair of two codecs.
-    fn pair<R>(self, right: impl Codec<R, OT, O>) -> impl Codec<(T, R), OT, O> {
+    fn pair<R>(self, right: impl Codec<R, O>) -> impl Codec<(T, R), O> {
         PairCodec {
             left: self,
             right,
@@ -129,7 +129,7 @@ where
     }
 
     /// This bounds the result of this codec in the range, returning an error if the value is not within the range.
-    fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T, OT, O>
+    fn bounded(self, range: impl RangeBounds<T>) -> impl Codec<T, O>
     where
         T: PartialOrd + Debug,
     {
@@ -142,7 +142,7 @@ where
 
     /// If this codec fails to encode or decode, it will fall back to using the second codec, only failing if both this and
     /// the other codec fail.
-    fn try_else(self, other: impl Codec<T, OT, O>) -> impl Codec<T, OT, O> {
+    fn try_else(self, other: impl Codec<T, O>) -> impl Codec<T, O> {
         TryElseCodec {
             lc: self,
             rc: other,
@@ -152,7 +152,7 @@ where
 
     /// If decoding for this codec fails, provide a default value that will be used instead.
     /// If you are trying to make an optional field in a map, use [`CodecAdapters::optional_field_of`] instead.
-    fn or_else<F: Fn() -> T>(self, f: F) -> impl Codec<T, OT, O> {
+    fn or_else<F: Fn() -> T>(self, f: F) -> impl Codec<T, O> {
         OrElseCodec {
             codec: self,
             default: f,
@@ -163,7 +163,7 @@ where
     /// Wraps this codec in a `Box<dyn Codec<...>>`, allowing it to be used in dynamic contexts where you
     /// only know which codec will be passed in at runtime. This also creates a pointer to a codec,
     /// enabling self-referential codecs.
-    fn dynamic(self) -> DynamicCodec<T, OT, O>
+    fn dynamic(self) -> DynamicCodec<T, O>
     where
         Self: 'static,
     {
@@ -173,7 +173,7 @@ where
     }
 
     /// Wraps this codec in an `Arc`, allowing it to be cloned and shared across threads.
-    fn arc(self) -> ArcCodec<T, OT, O>
+    fn arc(self) -> ArcCodec<T, O>
     where
         Self: 'static,
     {
@@ -183,7 +183,7 @@ where
     }
 
     /// Wraps the value being serialized or deserialized in a [`Box`].
-    fn boxed(self) -> BoxCodec<T, OT, O, Self> {
+    fn boxed(self) -> BoxCodec<T, O, Self> {
         BoxCodec {
             inner: self,
             _phantom: PhantomData,
@@ -191,16 +191,16 @@ where
     }
 }
 
-impl<T, OT: Clone, O: CodecOps<OT>, C: Codec<T, OT, O>> CodecAdapters<T, OT, O> for C {}
+impl<T, O: CodecOps, C: Codec<T, O>> CodecAdapters<T, O> for C {}
 
 /// This trait is the go-to trait for when you want to provide a [`Codec`] for a type. These should be used whenever possible.
 /// Please keep try to keep your implementations const-safe as this function in a future version of Rust may be upgraded to a `const fn`.
-pub trait DefaultCodec<OT: Clone, O: CodecOps<OT>>
+pub trait DefaultCodec<O: CodecOps>
 where
     Self: Sized,
 {
     /// Returns the default codec for a type.
-    fn codec() -> impl Codec<Self, OT, O>;
+    fn codec() -> impl Codec<Self, O>;
 }
 
 /// This type provides associated methods for creating a variety of types of codecs.
@@ -226,14 +226,13 @@ impl Codecs {
     /// ```
     pub fn recursive<
         T: 'static,
-        OT: Clone + 'static,
-        O: CodecOps<OT> + 'static,
-        F: Fn(DynamicCodec<T, OT, O>) -> Oc,
-        Oc: Codec<T, OT, O> + 'static,
+        O: CodecOps + 'static,
+        F: Fn(DynamicCodec<T, O>) -> Oc,
+        Oc: Codec<T, O> + 'static,
     >(
         f: F,
-    ) -> ArcCodec<T, OT, O> {
-        let placeholder = Rc::new(RefCell::new(None::<ArcCodec<_, _, _>>));
+    ) -> ArcCodec<T, O> {
+        let placeholder = Rc::new(RefCell::new(None::<ArcCodec<_, _>>));
         let placeholder_clone_1 = placeholder.clone();
         let placeholder_clone_2 = placeholder.clone();
 
@@ -267,13 +266,13 @@ impl Codecs {
         T: 'static,
         T2: 'static,
         OT: Clone + 'static,
-        O: CodecOps<OT> + 'static,
-        Lc: Codec<T, OT, O> + 'static,
-        Rc: Codec<T2, OT, O> + 'static,
+        O: CodecOps + 'static,
+        Lc: Codec<T, O> + 'static,
+        Rc: Codec<T2, O> + 'static,
     >(
         left: Lc,
         right: Rc,
-    ) -> impl Codec<Either<T, T2>, OT, O> {
+    ) -> impl Codec<Either<T, T2>, O> {
         EitherCodec {
             lc: left,
             rc: right,
@@ -283,14 +282,13 @@ impl Codecs {
 
     pub fn dispatch<
         T,
-        OT: Clone,
-        O: CodecOps<OT>,
-        E: Fn(&T) -> DataResult<DynamicCodec<T, OT, O>>,
-        F: Fn(&O, &OT) -> DataResult<DynamicCodec<T, OT, O>>,
+        O: CodecOps,
+        E: Fn(&T) -> DataResult<DynamicCodec<T, O>>,
+        F: Fn(&O, &O::T) -> DataResult<DynamicCodec<T, O>>,
     >(
         from_type_to_codec: E,
         from_ops_to_codec: F,
-    ) -> impl Codec<T, OT, O> {
+    ) -> impl Codec<T, O> {
         DispatchCodec {
             from_ops_to_codec,
             from_type_to_codec,
@@ -298,7 +296,7 @@ impl Codecs {
         }
     }
 
-    pub fn unit<OT: Clone, O: CodecOps<OT>>() -> impl Codec<(), OT, O> {
+    pub fn unit<OT: Clone, O: CodecOps>() -> impl Codec<(), O> {
         UnitCodec {}
     }
 }

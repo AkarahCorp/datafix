@@ -16,73 +16,75 @@ use crate::{fixers::TypeRewriteRule, result::DataResult};
 ///
 /// [`Codec`]: [`super::Codec`]
 /// [`Codec::decode`]: [`super::Codec::decode`]
-pub trait CodecOps<T: Clone>: Clone {
-    /// Creates a new numeric value of type `T`.
-    fn create_double(&self, value: &f64) -> T;
-    /// Creates a new numeric value of type `T`.
-    fn create_float(&self, value: &f32) -> T;
+pub trait CodecOps: Clone {
+    type T: Clone;
 
     /// Creates a new numeric value of type `T`.
-    fn create_byte(&self, value: &i8) -> T;
+    fn create_double(&self, value: &f64) -> Self::T;
     /// Creates a new numeric value of type `T`.
-    fn create_short(&self, value: &i16) -> T;
+    fn create_float(&self, value: &f32) -> Self::T;
+
     /// Creates a new numeric value of type `T`.
-    fn create_int(&self, value: &i32) -> T;
+    fn create_byte(&self, value: &i8) -> Self::T;
     /// Creates a new numeric value of type `T`.
-    fn create_long(&self, value: &i64) -> T;
+    fn create_short(&self, value: &i16) -> Self::T;
+    /// Creates a new numeric value of type `T`.
+    fn create_int(&self, value: &i32) -> Self::T;
+    /// Creates a new numeric value of type `T`.
+    fn create_long(&self, value: &i64) -> Self::T;
 
     /// Creates a new string value of type `T`.
-    fn create_string(&self, value: &str) -> T;
+    fn create_string(&self, value: &str) -> Self::T;
     /// Creates a new boolean value of type `T`.
-    fn create_boolean(&self, value: &bool) -> T;
+    fn create_boolean(&self, value: &bool) -> Self::T;
     /// Creates a new list value of type `T`, containing other values of type `T`.
-    fn create_list(&self, value: impl IntoIterator<Item = T>) -> T;
+    fn create_list(&self, value: impl IntoIterator<Item = Self::T>) -> Self::T;
     /// Creates a new map type of type `T`. The iterator should be used to construct the map with the String as the key and the `T` as the value.
-    fn create_map(&self, pairs: impl IntoIterator<Item = (String, T)>) -> T;
+    fn create_map(&self, pairs: impl IntoIterator<Item = (String, Self::T)>) -> Self::T;
     /// Creates a new map type of type `T`. The value should have no associated fields or value. An empty map is a valid example of a representation.
-    fn create_unit(&self) -> T;
+    fn create_unit(&self) -> Self::T;
 
     /// This converts a value of type `T` into a value of type `f32`.
-    fn get_float(&self, value: &T) -> DataResult<f32>;
+    fn get_float(&self, value: &Self::T) -> DataResult<f32>;
     /// This converts a value of type `T` into a value of type `f64`.
-    fn get_double(&self, value: &T) -> DataResult<f64>;
+    fn get_double(&self, value: &Self::T) -> DataResult<f64>;
 
     /// This converts a value of type `T` into a value of type `i8`.
-    fn get_byte(&self, value: &T) -> DataResult<i8>;
+    fn get_byte(&self, value: &Self::T) -> DataResult<i8>;
     /// This converts a value of type `T` into a value of type `i16`.
-    fn get_short(&self, value: &T) -> DataResult<i16>;
+    fn get_short(&self, value: &Self::T) -> DataResult<i16>;
     /// This converts a value of type `T` into a value of type `i32`.
-    fn get_int(&self, value: &T) -> DataResult<i32>;
+    fn get_int(&self, value: &Self::T) -> DataResult<i32>;
     /// This converts a value of type `T` into a value of type `i64`.
-    fn get_long(&self, value: &T) -> DataResult<i64>;
+    fn get_long(&self, value: &Self::T) -> DataResult<i64>;
 
     /// This converts a value of type `T` into a value of type `String`.
-    fn get_string(&self, value: &T) -> DataResult<String>;
+    fn get_string(&self, value: &Self::T) -> DataResult<String>;
     /// This converts a value of type `T` into a value of type `bool`.
-    fn get_boolean(&self, value: &T) -> DataResult<bool>;
+    fn get_boolean(&self, value: &Self::T) -> DataResult<bool>;
     /// This converts a value of type `T` into a view into a list's contents.
-    fn get_list(&self, value: &T) -> DataResult<impl ListView<T>>;
+    fn get_list(&self, value: &Self::T) -> DataResult<impl ListView<Self::T>>;
     /// This converts a value of type `T` into a view into a list's contents.
-    fn get_list_mut(&self, value: &mut T) -> DataResult<impl ListViewMut<T>>;
+    fn get_list_mut(&self, value: &mut Self::T) -> DataResult<impl ListViewMut<Self::T>>;
     /// This converts a value of type `T` into a view into an map's contents.
-    fn get_map(&self, value: &T) -> DataResult<impl MapView<T>>;
+    fn get_map(&self, value: &Self::T) -> DataResult<impl MapView<Self::T>>;
     /// This converts a value of type `T` into a view into an map's contents.
-    fn get_map_mut(&self, value: &mut T) -> DataResult<impl MapViewMut<T>>;
+    fn get_map_mut(&self, value: &mut Self::T) -> DataResult<impl MapViewMut<Self::T>>;
     /// This converts a value of type `T` into a unit value with no fields or associated values.
-    fn get_unit(&self, value: &T) -> DataResult<()>;
+    fn get_unit(&self, value: &Self::T) -> DataResult<()>;
 
     /// This purely exists for Optional Fields. The `Option` represents if a field is present,
     /// the `DataResult` represents the actual field data.
     fn create_map_special(
         &self,
-        pairs: impl IntoIterator<Item = Option<DataResult<(String, T)>>>,
-    ) -> DataResult<T> {
+        pairs: impl IntoIterator<Item = Option<DataResult<(String, Self::T)>>>,
+    ) -> DataResult<Self::T> {
         let iter1 = pairs.into_iter().flatten().filter_map(|x| x.ok());
 
         Ok(self.create_map(iter1))
     }
 
-    fn repair(&self, value: T, rule: impl TypeRewriteRule<T, Self>) -> T {
+    fn repair(&self, value: Self::T, rule: impl TypeRewriteRule<Self>) -> Self::T {
         rule.fix_data(self.clone(), value)
     }
 }
