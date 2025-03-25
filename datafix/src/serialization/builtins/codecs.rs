@@ -11,7 +11,7 @@ use either::Either;
 
 use crate::{
     result::{DataError, DataResult},
-    serialization::{Codec, CodecOps, DefaultCodec, ListView, MapView},
+    serialization::{Codec, CodecAdapters, CodecOps, DefaultCodec, ListView, MapView},
 };
 
 pub(crate) struct StringCodec;
@@ -362,6 +362,27 @@ make_numeric_codec! {
     {i16, I16Codec, get_short, create_short}
     {i32, I32Codec, get_int, create_int}
     {i64, I64Codec, get_long, create_long}
+}
+
+macro_rules! make_unsigned_codec {
+    (
+        $(
+            {$from:ty; $to:ty}
+        )*
+    ) => {
+        $(impl<O: CodecOps> DefaultCodec<O> for $to {
+            fn codec() -> impl Codec<Self, O> {
+                <$from>::codec().xmap(|x| *x as $to, |x| *x as $from)
+            }
+        })*
+    };
+}
+
+make_unsigned_codec! {
+    {i8; u8}
+    {i16; u16}
+    {i32; u32}
+    {i64; u64}
 }
 
 pub struct UntypedMapCodec<T, O: CodecOps, C: Codec<T, O>> {
