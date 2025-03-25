@@ -296,7 +296,7 @@ impl Codecs {
         }
     }
 
-    pub fn unit<OT: Clone, O: CodecOps>() -> impl Codec<(), O> {
+    pub fn unit<O: CodecOps>() -> impl Codec<(), O> {
         UnitCodec {}
     }
 }
