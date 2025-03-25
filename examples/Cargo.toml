@@ -1,0 +1,12 @@
+[package]
+name = "datafix-examples"
+version = "0.1.0"
+publish = false
+edition = "2024"
+
+[[example]]
+name = "playground"
+path = "./playground.rs"
+
+[dev-dependencies]
+datafix = { workspace = true }

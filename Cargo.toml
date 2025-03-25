@@ -1,11 +1,8 @@
-[package]
-name = "datafix"
-version = "0.1.0"
-edition = "2024"
-authors = ["akarahdev"]
-description = "A library to serialize & deserialize data and upgrade data between versions"
-license = "MIT"
+[workspace]
+members = ["./datafix/", "./examples/"]
+resolver = "3"
 
-[dependencies]
+[workspace.dependencies]
+datafix = { path = "./datafix/" }
 either = { version = "1.13.0", default-features = false }
 json = { version = "0.12.4" }
