@@ -8,7 +8,6 @@ edition = "2024"
 name = "playground"
 path = "./playground.rs"
 
-
 [[example]]
 name = "game_config"
 path = "./game_config.rs"

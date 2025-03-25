@@ -5,8 +5,8 @@ mod ops;
 use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
 use builtins::{
     codecs::{
-        ArcCodec, BoundedCodec, BoxCodec, DispatchCodec, DynamicCodec, EitherCodec, FnCodec,
-        ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
+        ArcCodec, BoundedCodec, BoxCodec, DispatchCodec, DynamicCodec, EitherCodec, FlatXMapCodec,
+        FnCodec, ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
     },
     records::{DefaultField, OptionalField, RecordField, UnitCodec},
 };
@@ -112,6 +112,22 @@ where
         G: Fn(&U) -> T,
     {
         XMapCodec {
+            inner: self,
+            f1: to_new,
+            f2: from_new,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Maps the output of this codec between 2 transformation functions.
+    /// If either transformation fails, the error is returned.
+    /// Implementors should hold the invariant of `F(G(x)) = x` such that the functions can be used to freely convert between the two types.
+    fn flat_xmap<U, F, G>(self, to_new: F, from_new: G) -> impl Codec<U, O>
+    where
+        F: Fn(&T) -> DataResult<U>,
+        G: Fn(&U) -> DataResult<T>,
+    {
+        FlatXMapCodec {
             inner: self,
             f1: to_new,
             f2: from_new,

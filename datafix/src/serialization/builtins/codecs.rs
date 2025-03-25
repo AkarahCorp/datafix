@@ -101,6 +101,33 @@ where
     }
 }
 
+pub(crate) struct FlatXMapCodec<OLT, NT, C, F1, F2, O: CodecOps>
+where
+    C: Codec<OLT, O>,
+    F1: Fn(&OLT) -> DataResult<NT>,
+    F2: Fn(&NT) -> DataResult<OLT>,
+{
+    pub(crate) inner: C,
+    pub(crate) f1: F1,
+    pub(crate) f2: F2,
+    pub(crate) _phantom: PhantomData<fn() -> (OLT, NT, O)>,
+}
+
+impl<OLT, NT, C, F1, F2, O: CodecOps> Codec<NT, O> for FlatXMapCodec<OLT, NT, C, F1, F2, O>
+where
+    C: Codec<OLT, O>,
+    F1: Fn(&OLT) -> DataResult<NT>,
+    F2: Fn(&NT) -> DataResult<OLT>,
+{
+    fn encode(&self, ops: &O, value: &NT) -> DataResult<O::T> {
+        self.inner.encode(ops, &(self.f2)(value)?)
+    }
+
+    fn decode(&self, ops: &O, value: &O::T) -> DataResult<NT> {
+        (self.f1)(&self.inner.decode(ops, value)?)
+    }
+}
+
 pub(crate) struct PairCodec<L, R, Lc: Codec<L, O>, Rc: Codec<R, O>, O: CodecOps> {
     pub(crate) left: Lc,
     pub(crate) right: Rc,
