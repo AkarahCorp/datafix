@@ -15,6 +15,7 @@ pub trait MapFieldGetter<T, C: Codec<T, O>, Struct, Rt, O: CodecOps> {
     ) -> Option<DataResult<(String, O::T)>>;
     fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
+    fn codec(&self) -> &C;
 }
 
 pub struct OptionalField<T, C: Codec<T, O>, Struct, O: CodecOps> {
@@ -58,6 +59,10 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, Option
     fn field_name(&self) -> &str {
         &self.field_name
     }
+
+    fn codec(&self) -> &C {
+        &self.codec
+    }
 }
 
 pub struct DefaultField<T, C: Codec<T, O>, Struct, O: CodecOps, F: Fn() -> T> {
@@ -100,6 +105,10 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps, F: Fn() -> T> MapFieldGetter<T, C, 
     fn field_name(&self) -> &str {
         &self.field_name
     }
+
+    fn codec(&self) -> &C {
+        &self.codec
+    }
 }
 
 pub struct RecordField<T, C: Codec<T, O>, Struct, O: CodecOps> {
@@ -134,6 +143,53 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, T, O>
             Err(e) => return Some(Err(e)),
         };
         Some(Ok((self.field_name.clone(), e)))
+    }
+
+    fn codec(&self) -> &C {
+        &self.codec
+    }
+}
+
+pub struct FallibleField<T, C: Codec<T, O>, Struct, O: CodecOps> {
+    pub(crate) field_name: String,
+    pub(crate) getter: fn(&Struct) -> DataResult<&T>,
+    pub(crate) codec: C,
+    pub(crate) _phantom: PhantomData<fn() -> (T, O::T, O)>,
+}
+
+impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, T, O>
+    for FallibleField<T, C, Struct, O>
+{
+    fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        let obj = ops.get_map(value)?;
+        let field = obj.get(&self.field_name)?;
+        self.codec.decode(ops, field, ctx)
+    }
+
+    fn field_name(&self) -> &str {
+        &self.field_name
+    }
+
+    fn encode_into(
+        &self,
+        ops: &O,
+        value: &Struct,
+        ctx: &mut Context,
+    ) -> Option<DataResult<(String, O::T)>> {
+        let get = match (self.getter)(value) {
+            Ok(v) => v,
+            Err(e) => return Some(Err(e)),
+        };
+        let e = self.codec.encode(ops, get, ctx);
+        let e = match e {
+            Ok(v) => v,
+            Err(e) => return Some(Err(e)),
+        };
+        Some(Ok((self.field_name.clone(), e)))
+    }
+
+    fn codec(&self) -> &C {
+        &self.codec
     }
 }
 
@@ -198,6 +254,17 @@ macro_rules! record_codec {
                 Ok((self.into_struct.get().unwrap())(
                     $($field),*
                 ))
+            }
+
+            fn debug(&self) -> String {
+                let mut str = String::new();
+                str.push_str("Map[");
+                $(
+                    str.push_str(self.$field.codec().debug().as_str());
+                    str.push_str(", ");
+                )*
+                str.push_str("]");
+                str
             }
         }
     };

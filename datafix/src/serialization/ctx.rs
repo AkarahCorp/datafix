@@ -1,8 +1,8 @@
-use core::fmt::Display;
+use core::fmt::{Debug, Display};
 
 use alloc::{string::String, vec::Vec};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Context {
     stack_trace: Vec<TracePoint>,
     cache: Vec<Context>,
@@ -11,7 +11,7 @@ pub struct Context {
 impl Context {
     pub fn new() -> Context {
         Context {
-            stack_trace: Vec::new(),
+            stack_trace: [TracePoint::Root].into(),
             cache: Vec::new(),
         }
     }
@@ -54,35 +54,43 @@ impl Default for Context {
     }
 }
 
+impl Debug for Context {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
 impl Display for Context {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "Stack trace: ")?;
         for element in &self.stack_trace {
-            write!(f, "{element}")?;
+            element.fmt(f)?;
         }
         Ok(())
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum TracePoint {
+    Root,
     Field { name: String },
     Array { index: usize },
     Codec { name: String },
 }
 
-impl Display for TracePoint {
+impl Debug for TracePoint {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.fmt(f)
+    }
+}
+
+impl TracePoint {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            TracePoint::Field { name } => {
-                write!(f, ".{name}")
-            }
-            TracePoint::Array { index } => {
-                write!(f, "[{index}]")
-            }
-            TracePoint::Codec { name } => {
-                write!(f, "| (Codec: {name})")
-            }
+            TracePoint::Root => write!(f, "$"),
+            TracePoint::Field { name } => write!(f, ".{name}"),
+            TracePoint::Array { index } => write!(f, "[{index}]"),
+            TracePoint::Codec { name } => write!(f, "@ Codec: {name}"),
         }
     }
 }

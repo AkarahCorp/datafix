@@ -5,6 +5,8 @@ use core::{
 
 use alloc::string::String;
 
+use crate::serialization::Context;
+
 pub enum DataError {
     UnexpectedType { expected: String },
     KeyNotFoundInMap { key: String },
@@ -53,10 +55,40 @@ impl Display for DataError {
 
 impl Debug for DataError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.write_str("DataError { ")?;
-        Display::fmt(self, f)?;
-        f.write_str(" }")
+        f.write_str("Data Error: ")?;
+        Display::fmt(self, f)
     }
 }
 
 pub type DataResult<T> = Result<T, DataError>;
+
+pub struct CodecError {
+    error: DataError,
+    span: Context,
+}
+
+impl CodecError {
+    pub fn new(error: DataError, span: Context) -> Self {
+        CodecError { error, span }
+    }
+
+    pub fn error(&self) -> &DataError {
+        &self.error
+    }
+
+    pub fn span(&self) -> &Context {
+        &self.span
+    }
+}
+
+impl Debug for CodecError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "An error has occured: \n{:?}\n{:?}",
+            self.error, self.span
+        )
+    }
+}
+
+pub type CodecResult<T> = Result<T, CodecError>;

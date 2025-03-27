@@ -12,5 +12,15 @@ path = "./playground.rs"
 name = "game_config"
 path = "./game_config.rs"
 
+[[example]]
+name = "linked_list"
+path = "./linked_list.rs"
+
+[[example]]
+name = "web_event"
+path = "./web_event.rs"
+
+
 [dev-dependencies]
 datafix = { workspace = true }
+json = { workspace = true }

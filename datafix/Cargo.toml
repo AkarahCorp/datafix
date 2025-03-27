@@ -9,3 +9,4 @@ license = "MIT"
 [dependencies]
 json = { workspace = true }
 either = { workspace = true }
+pretty-type-name = { workspace = true }

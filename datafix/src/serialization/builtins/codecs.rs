@@ -3,6 +3,7 @@ use core::{fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use alloc::{
     boxed::Box,
     collections::btree_map::BTreeMap,
+    format,
     string::{String, ToString},
     sync::Arc,
     vec::Vec,
@@ -14,6 +15,7 @@ use crate::{
     serialization::{Codec, CodecAdapters, CodecOps, Context, DefaultCodec, ListView, MapView},
 };
 
+#[derive(Clone, Debug)]
 pub(crate) struct StringCodec;
 
 impl<O: CodecOps> Codec<String, O> for StringCodec {
@@ -32,6 +34,7 @@ impl<O: CodecOps> DefaultCodec<O> for String {
     }
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct BoolCodec;
 
 impl<O: CodecOps> Codec<bool, O> for BoolCodec {
@@ -158,12 +161,7 @@ impl<L, R, Lc: Codec<L, O>, Rc: Codec<R, O>, O: CodecOps> Codec<(L, R), O>
     }
 }
 
-pub(crate) struct BoundedCodec<
-    T: PartialOrd + Debug,
-    C: Codec<T, O>,
-    R: RangeBounds<T>,
-    O: CodecOps,
-> {
+pub(crate) struct BoundedCodec<T: PartialOrd, C: Codec<T, O>, R: RangeBounds<T>, O: CodecOps> {
     pub(crate) codec: C,
     pub(crate) range: R,
     pub(crate) _phantom: PhantomData<fn() -> (T, O)>,
@@ -272,15 +270,35 @@ pub struct TryElseCodec<T, O: CodecOps, Lc: Codec<T, O>, Rc: Codec<T, O>> {
 
 impl<T, O: CodecOps, Lc: Codec<T, O>, Rc: Codec<T, O>> Codec<T, O> for TryElseCodec<T, O, Lc, Rc> {
     fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
-        self.lc
-            .encode(ops, value, ctx)
-            .or_else(|_| self.rc.encode(ops, value, ctx))
+        let t1 = self.lc.encode(ops, value, ctx);
+        match t1 {
+            Err(_) => {
+                let t2 = self.rc.encode(ops, value, ctx);
+                match t2 {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(e),
+                }
+            }
+            Ok(v) => Ok(v),
+        }
     }
 
     fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
-        self.lc
-            .decode(ops, value, ctx)
-            .or_else(|_| self.rc.decode(ops, value, ctx))
+        let t1 = self.lc.decode(ops, value, ctx);
+        match t1 {
+            Err(_) => {
+                let t2 = self.rc.decode(ops, value, ctx);
+                match t2 {
+                    Ok(v) => Ok(v),
+                    Err(e) => Err(e),
+                }
+            }
+            Ok(v) => Ok(v),
+        }
+    }
+
+    fn debug(&self) -> String {
+        format!("({}) orelse ({})", self.lc.debug(), self.rc.debug())
     }
 }
 
@@ -354,6 +372,41 @@ impl<
 
     fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
         (self.from_ops_to_codec)(ops, value)?.decode(ops, value, ctx)
+    }
+}
+
+pub struct ConstantCodec<T: Clone + PartialEq + Debug, C: Codec<T, O>, O: CodecOps> {
+    pub(crate) codec: C,
+    pub(crate) constant: T,
+    pub(crate) _phantom: PhantomData<O>,
+}
+
+impl<T: Clone + PartialEq + Debug, C: Codec<T, O>, O: CodecOps> Codec<T, O>
+    for ConstantCodec<T, C, O>
+{
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<<O as CodecOps>::T> {
+        if value != &self.constant {
+            return Err(DataError::new_custom(&format!(
+                "expected constant {:?}, found {:?}",
+                self.constant, value
+            )));
+        }
+        self.codec.encode(ops, value, ctx)
+    }
+
+    fn decode(&self, ops: &O, value: &<O as CodecOps>::T, ctx: &mut Context) -> DataResult<T> {
+        let value = self.codec.decode(ops, value, ctx)?;
+        if value != self.constant {
+            return Err(DataError::new_custom(&format!(
+                "expected constant {:?}, found {:?}",
+                self.constant, value
+            )));
+        }
+        Ok(value)
+    }
+
+    fn debug(&self) -> String {
+        format!("Constant({:?})", self.constant)
     }
 }
 

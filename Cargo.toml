@@ -6,3 +6,4 @@ resolver = "3"
 datafix = { path = "./datafix/" }
 either = { version = "1.13.0", default-features = false }
 json = { version = "0.12.4" }
+pretty-type-name = { version = "1.0.1" }

@@ -3,13 +3,19 @@ mod ctx;
 mod dynamic;
 mod ops;
 
-use alloc::{boxed::Box, rc::Rc, string::String, sync::Arc, vec::Vec};
+use alloc::{
+    boxed::Box,
+    rc::Rc,
+    string::{String, ToString},
+    sync::Arc,
+    vec::Vec,
+};
 use builtins::{
     codecs::{
-        ArcCodec, BoundedCodec, BoxCodec, DispatchCodec, DynamicCodec, EitherCodec, FlatXMapCodec,
-        FnCodec, ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
+        ArcCodec, BoundedCodec, BoxCodec, ConstantCodec, DispatchCodec, DynamicCodec, EitherCodec,
+        FlatXMapCodec, FnCodec, ListCodec, OrElseCodec, PairCodec, TryElseCodec, XMapCodec,
     },
-    records::{DefaultField, OptionalField, RecordField, UnitCodec},
+    records::{DefaultField, FallibleField, OptionalField, RecordField, UnitCodec},
 };
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use either::Either;
@@ -18,7 +24,7 @@ pub use ctx::*;
 pub use dynamic::*;
 pub use ops::*;
 
-use crate::result::{DataError, DataResult};
+use crate::result::{CodecError, DataResult};
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -38,24 +44,28 @@ pub use builtins::record_builder::MapCodecBuilder;
     note = "some types provide an implementation of DefaultCodec::codec()"
 )]
 pub trait Codec<Type, Ops: CodecOps> {
-    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
-    /// For implementors, this function should be pure and have no side effects.
-    fn encode_start(&self, ops: &Ops, value: &Type) -> Result<Ops::T, (DataError, Context)> {
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error and associated span.
+    fn encode_start(&self, ops: &Ops, value: &Type) -> Result<Ops::T, CodecError> {
         let mut ctx = Context::new();
-        self.encode(ops, value, &mut ctx).map_err(|e| (e, ctx))
+        self.encode(ops, value, &mut ctx)
+            .map_err(|e| CodecError::new(e, ctx))
     }
-    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
-    /// For implementors, this function should be pure and have no side effects.
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error and associated span.
+    /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     fn encode(&self, ops: &Ops, value: &Type, ctx: &mut Context) -> DataResult<Ops::T>;
-    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
-    /// For implementors, this function should be pure and have no side effects.
-    fn decode_start(&self, ops: &Ops, value: &Ops::T) -> Result<Type, (DataError, Context)> {
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error  and associated span.
+    fn decode_start(&self, ops: &Ops, value: &Ops::T) -> Result<Type, CodecError> {
         let mut ctx = Context::new();
-        self.decode(ops, value, &mut ctx).map_err(|e| (e, ctx))
+        self.decode(ops, value, &mut ctx)
+            .map_err(|e| CodecError::new(e, ctx))
     }
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
     fn decode(&self, ops: &Ops, value: &Ops::T, ctx: &mut Context) -> DataResult<Type>;
+
+    fn debug(&self) -> String {
+        pretty_type_name::pretty_type_name::<Self>().to_string()
+    }
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
@@ -73,6 +83,21 @@ where
         getter: fn(&Struct) -> &T,
     ) -> RecordField<T, Self, Struct, O> {
         RecordField {
+            field_name: name.into(),
+            getter,
+            codec: self,
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Returns a codec of this type that is intended for a field of a record.
+    /// Returning a Err from the getter function makes the encoding fail.
+    fn fallible_field_of<Struct>(
+        self,
+        name: impl Into<String>,
+        getter: fn(&Struct) -> DataResult<&T>,
+    ) -> FallibleField<T, Self, Struct, O> {
+        FallibleField {
             field_name: name.into(),
             getter,
             codec: self,
@@ -322,6 +347,17 @@ impl Codecs {
         DispatchCodec {
             from_ops_to_codec,
             from_type_to_codec,
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn constant<T: Clone + Debug + PartialEq, C: Codec<T, O>, O: CodecOps>(
+        codec: C,
+        constant: impl Into<T>,
+    ) -> ConstantCodec<T, C, O> {
+        ConstantCodec {
+            codec,
+            constant: constant.into(),
             _phantom: PhantomData,
         }
     }

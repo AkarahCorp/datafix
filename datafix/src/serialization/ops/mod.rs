@@ -79,9 +79,14 @@ pub trait CodecOps: Clone {
         &self,
         pairs: impl IntoIterator<Item = Option<DataResult<(String, Self::T)>>>,
     ) -> DataResult<Self::T> {
-        let iter1 = pairs.into_iter().flatten().filter_map(|x| x.ok());
-
-        Ok(self.create_map(iter1))
+        let mut vec = Vec::new();
+        for element in pairs.into_iter().flatten() {
+            match element {
+                Ok(v) => vec.push(v),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(self.create_map(vec))
     }
 
     fn repair(&self, value: Self::T, rule: impl TypeRewriteRule<Self>) -> Self::T {
