@@ -1,4 +1,5 @@
 mod builtins;
+mod ctx;
 mod dynamic;
 mod ops;
 
@@ -13,10 +14,11 @@ use builtins::{
 use core::{cell::RefCell, fmt::Debug, marker::PhantomData, ops::RangeBounds};
 use either::Either;
 
+pub use ctx::*;
 pub use dynamic::*;
 pub use ops::*;
 
-use crate::result::DataResult;
+use crate::result::{DataError, DataResult};
 pub use builtins::record_builder::MapCodecBuilder;
 
 /// A [`Codec<T>`] describes transformations to and from [`Dynamic`] for a type `T`.
@@ -38,10 +40,22 @@ pub use builtins::record_builder::MapCodecBuilder;
 pub trait Codec<Type, Ops: CodecOps> {
     /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
     /// For implementors, this function should be pure and have no side effects.
-    fn encode(&self, ops: &Ops, value: &Type) -> DataResult<Ops::T>;
+    fn encode_start(&self, ops: &Ops, value: &Type) -> Result<Ops::T, (DataError, Context)> {
+        let mut ctx = Context::new();
+        self.encode(ops, value, &mut ctx).map_err(|e| (e, ctx))
+    }
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
+    /// For implementors, this function should be pure and have no side effects.
+    fn encode(&self, ops: &Ops, value: &Type, ctx: &mut Context) -> DataResult<Ops::T>;
+    /// Transform a value of type `T` into a `U` using the provided [`CodecOps`], optionally returning an error .
+    /// For implementors, this function should be pure and have no side effects.
+    fn decode_start(&self, ops: &Ops, value: &Ops::T) -> Result<Type, (DataError, Context)> {
+        let mut ctx = Context::new();
+        self.decode(ops, value, &mut ctx).map_err(|e| (e, ctx))
+    }
     /// Transforms a `U` value into a type `T` using the provided [`CodecOps`], optionally returning an error.
     /// For implementors, this function should be pure and have no side effects.
-    fn decode(&self, ops: &Ops, value: &Ops::T) -> DataResult<Type>;
+    fn decode(&self, ops: &Ops, value: &Ops::T, ctx: &mut Context) -> DataResult<Type>;
 }
 
 /// Holds the adapter functions for [`Codec`] to allow codecs to do things such as:
@@ -254,19 +268,19 @@ impl Codecs {
 
         let dummy = DynamicCodec {
             codec: Box::new(FnCodec {
-                encode: Box::new(move |ops, value| {
+                encode: Box::new(move |ops, value, ctx| {
                     placeholder_clone_1
                         .borrow()
                         .as_ref()
                         .expect("tried to decode before initialization")
-                        .encode(ops, value)
+                        .encode(ops, value, ctx)
                 }),
-                decode: Box::new(move |ops, value| {
+                decode: Box::new(move |ops, value, ctx| {
                     placeholder_clone_2
                         .borrow()
                         .as_ref()
                         .expect("tried to decode before initialization")
-                        .decode(ops, value)
+                        .decode(ops, value, ctx)
                 }),
             }),
         };

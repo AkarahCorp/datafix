@@ -2,13 +2,18 @@ use core::{cell::OnceCell, marker::PhantomData};
 
 use crate::{
     result::{DataError, DataResult},
-    serialization::{Codec, CodecOps, MapView},
+    serialization::{Codec, CodecOps, Context, MapView},
 };
 use alloc::string::String;
 
 pub trait MapFieldGetter<T, C: Codec<T, O>, Struct, Rt, O: CodecOps> {
-    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, O::T)>>;
-    fn get_field(&self, ops: &O, value: &O::T) -> DataResult<Rt>;
+    fn encode_into(
+        &self,
+        ops: &O,
+        value: &Struct,
+        ctx: &mut Context,
+    ) -> Option<DataResult<(String, O::T)>>;
+    fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Rt>;
     fn field_name(&self) -> &str;
 }
 
@@ -22,11 +27,16 @@ pub struct OptionalField<T, C: Codec<T, O>, Struct, O: CodecOps> {
 impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, Option<T>, O>
     for OptionalField<T, C, Struct, O>
 {
-    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, O::T)>> {
+    fn encode_into(
+        &self,
+        ops: &O,
+        value: &Struct,
+        ctx: &mut Context,
+    ) -> Option<DataResult<(String, O::T)>> {
         let value = (self.getter)(value);
         match value {
             Some(value) => {
-                let e = self.codec.encode(ops, value);
+                let e = self.codec.encode(ops, value, ctx);
                 let e = match e {
                     Ok(v) => v,
                     Err(e) => return Some(Err(e)),
@@ -37,10 +47,10 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, Option
         }
     }
 
-    fn get_field(&self, ops: &O, value: &O::T) -> DataResult<Option<T>> {
+    fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Option<T>> {
         let obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
-            Ok(field) => Ok(Some(self.codec.decode(ops, field)?)),
+            Ok(field) => Ok(Some(self.codec.decode(ops, field, ctx)?)),
             Err(_) => Ok(None),
         }
     }
@@ -61,9 +71,14 @@ pub struct DefaultField<T, C: Codec<T, O>, Struct, O: CodecOps, F: Fn() -> T> {
 impl<T, C: Codec<T, O>, Struct, O: CodecOps, F: Fn() -> T> MapFieldGetter<T, C, Struct, T, O>
     for DefaultField<T, C, Struct, O, F>
 {
-    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, O::T)>> {
+    fn encode_into(
+        &self,
+        ops: &O,
+        value: &Struct,
+        ctx: &mut Context,
+    ) -> Option<DataResult<(String, O::T)>> {
         let value = (self.getter)(value);
-        let e = self.codec.encode(ops, value);
+        let e = self.codec.encode(ops, value, ctx);
         let e = match e {
             Ok(v) => v,
             Err(e) => return Some(Err(e)),
@@ -71,10 +86,10 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps, F: Fn() -> T> MapFieldGetter<T, C, 
         Some(Ok((self.field_name.clone(), e)))
     }
 
-    fn get_field(&self, ops: &O, value: &O::T) -> DataResult<T> {
+    fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
         let obj = ops.get_map(value)?;
         match obj.get(&self.field_name) {
-            Ok(field) => Ok(self.codec.decode(ops, field)?),
+            Ok(field) => Ok(self.codec.decode(ops, field, ctx)?),
             Err(_) => {
                 let default_value = (self.default)();
                 Ok(default_value)
@@ -97,18 +112,23 @@ pub struct RecordField<T, C: Codec<T, O>, Struct, O: CodecOps> {
 impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, T, O>
     for RecordField<T, C, Struct, O>
 {
-    fn get_field(&self, ops: &O, value: &O::T) -> DataResult<T> {
+    fn get_field(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
         let obj = ops.get_map(value)?;
         let field = obj.get(&self.field_name)?;
-        self.codec.decode(ops, field)
+        self.codec.decode(ops, field, ctx)
     }
 
     fn field_name(&self) -> &str {
         &self.field_name
     }
 
-    fn encode_into(&self, ops: &O, value: &Struct) -> Option<DataResult<(String, O::T)>> {
-        let e = self.codec.encode(ops, (self.getter)(value));
+    fn encode_into(
+        &self,
+        ops: &O,
+        value: &Struct,
+        ctx: &mut Context,
+    ) -> Option<DataResult<(String, O::T)>> {
+        let e = self.codec.encode(ops, (self.getter)(value), ctx);
         let e = match e {
             Ok(v) => v,
             Err(e) => return Some(Err(e)),
@@ -120,11 +140,11 @@ impl<T, C: Codec<T, O>, Struct, O: CodecOps> MapFieldGetter<T, C, Struct, T, O>
 pub struct UnitCodec {}
 
 impl<O: CodecOps> Codec<(), O> for UnitCodec {
-    fn encode(&self, ops: &O, _value: &()) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, _value: &(), _ctx: &mut Context) -> DataResult<O::T> {
         Ok(ops.create_unit())
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<()> {
+    fn decode(&self, ops: &O, value: &O::T, _ctx: &mut Context) -> DataResult<()> {
         ops.get_unit(value)
     }
 }
@@ -155,15 +175,15 @@ macro_rules! record_codec {
             $field_return_type,
             $field_type: MapFieldGetter<$name, $codec, Struct, $field_return_type, O>
         ),*, O: CodecOps> Codec<Struct, O> for $struct_name<$($name, $codec, $field_return_type, $field_type),*, Struct, O> {
-            fn encode(&self, ops: &O, value: &Struct) -> DataResult<O::T> {
+            fn encode(&self, ops: &O, value: &Struct, ctx: &mut Context) -> DataResult<O::T> {
                 ops.create_map_special([
-                    $(self.$field.encode_into(ops, value),)*
+                    $(self.$field.encode_into(ops, value, ctx),)*
                 ])
             }
 
-            fn decode(&self, ops: &O, value: &O::T) -> DataResult<Struct> {
+            fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Struct> {
                 $(
-                    let $field: $field_return_type = self.$field.get_field(ops, value)?;
+                    let $field: $field_return_type = self.$field.get_field(ops, value, ctx)?;
                 )*
                 let map = ops.get_map(value)?;
                 let slice = [$(&self.$field.field_name()),*];

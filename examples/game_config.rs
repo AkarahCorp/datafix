@@ -1,6 +1,5 @@
-use datafix::{
-    result::DataError,
-    serialization::{Codec, CodecAdapters, CodecOps, DefaultCodec, MapCodecBuilder, json::JsonOps},
+use datafix::serialization::{
+    Codec, CodecAdapters, CodecOps, DefaultCodec, MapCodecBuilder, json::JsonOps,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -42,14 +41,15 @@ impl<O: CodecOps> DefaultCodec<O> for GameConfig {
     }
 }
 
-fn main() -> Result<(), DataError> {
+fn main() {
     let config = GameConfig::new(100, 50, 12);
     println!("{:?}", config);
-    let encoded = GameConfig::codec().encode(&JsonOps, &config)?;
+    let encoded = GameConfig::codec().encode_start(&JsonOps, &config).unwrap();
     println!("{}", encoded);
-    let decoded = GameConfig::codec().decode(&JsonOps, &encoded)?;
+    let decoded = GameConfig::codec()
+        .decode_start(&JsonOps, &encoded)
+        .unwrap();
     println!("{:?}", decoded);
 
     assert_eq!(config, decoded);
-    Ok(())
 }

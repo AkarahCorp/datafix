@@ -309,8 +309,8 @@ mod tests {
 
     #[test]
     fn simple_encode_decode() {
-        let encoded = f64::codec().encode(&JsonOps, &10.0).unwrap();
-        let decoded = f64::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = f64::codec().encode_start(&JsonOps, &10.0).unwrap();
+        let decoded = f64::codec().decode_start(&JsonOps, &encoded).unwrap();
         assert_eq!(decoded, 10.0);
     }
 }

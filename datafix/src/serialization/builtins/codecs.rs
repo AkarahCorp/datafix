@@ -11,17 +11,17 @@ use either::Either;
 
 use crate::{
     result::{DataError, DataResult},
-    serialization::{Codec, CodecAdapters, CodecOps, DefaultCodec, ListView, MapView},
+    serialization::{Codec, CodecAdapters, CodecOps, Context, DefaultCodec, ListView, MapView},
 };
 
 pub(crate) struct StringCodec;
 
 impl<O: CodecOps> Codec<String, O> for StringCodec {
-    fn encode(&self, ops: &O, value: &String) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &String, _ctx: &mut Context) -> DataResult<O::T> {
         Ok(ops.create_string(value))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<String> {
+    fn decode(&self, ops: &O, value: &O::T, _ctx: &mut Context) -> DataResult<String> {
         ops.get_string(value)
     }
 }
@@ -35,11 +35,11 @@ impl<O: CodecOps> DefaultCodec<O> for String {
 pub(crate) struct BoolCodec;
 
 impl<O: CodecOps> Codec<bool, O> for BoolCodec {
-    fn encode(&self, ops: &O, value: &bool) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &bool, _ctx: &mut Context) -> DataResult<O::T> {
         Ok(ops.create_boolean(value))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<bool> {
+    fn decode(&self, ops: &O, value: &O::T, _ctx: &mut Context) -> DataResult<bool> {
         ops.get_boolean(value)
     }
 }
@@ -56,19 +56,19 @@ pub(crate) struct ListCodec<T, C: Codec<T, O>, O: CodecOps> {
 }
 
 impl<T, C: Codec<T, O>, O: CodecOps> Codec<Vec<T>, O> for ListCodec<T, C, O> {
-    fn encode(&self, ops: &O, value: &Vec<T>) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &Vec<T>, ctx: &mut Context) -> DataResult<O::T> {
         let mut list = Vec::new();
         for element in value {
-            list.push(self.inner.encode(ops, element)?);
+            list.push(self.inner.encode(ops, element, ctx)?);
         }
         Ok(ops.create_list(list))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<Vec<T>> {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
         for item in list.into_iter() {
-            vec.push(self.inner.decode(ops, &item)?);
+            vec.push(self.inner.decode(ops, &item, ctx)?);
         }
         Ok(vec)
     }
@@ -92,12 +92,12 @@ where
     F1: Fn(&OLT) -> NT,
     F2: Fn(&NT) -> OLT,
 {
-    fn encode(&self, ops: &O, value: &NT) -> DataResult<O::T> {
-        self.inner.encode(ops, &(self.f2)(value))
+    fn encode(&self, ops: &O, value: &NT, ctx: &mut Context) -> DataResult<O::T> {
+        self.inner.encode(ops, &(self.f2)(value), ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<NT> {
-        Ok((self.f1)(&self.inner.decode(ops, value)?))
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<NT> {
+        Ok((self.f1)(&self.inner.decode(ops, value, ctx)?))
     }
 }
 
@@ -119,12 +119,12 @@ where
     F1: Fn(&OLT) -> DataResult<NT>,
     F2: Fn(&NT) -> DataResult<OLT>,
 {
-    fn encode(&self, ops: &O, value: &NT) -> DataResult<O::T> {
-        self.inner.encode(ops, &(self.f2)(value)?)
+    fn encode(&self, ops: &O, value: &NT, ctx: &mut Context) -> DataResult<O::T> {
+        self.inner.encode(ops, &(self.f2)(value)?, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<NT> {
-        (self.f1)(&self.inner.decode(ops, value)?)
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<NT> {
+        (self.f1)(&self.inner.decode(ops, value, ctx)?)
     }
 }
 
@@ -136,19 +136,19 @@ pub(crate) struct PairCodec<L, R, Lc: Codec<L, O>, Rc: Codec<R, O>, O: CodecOps>
 impl<L, R, Lc: Codec<L, O>, Rc: Codec<R, O>, O: CodecOps> Codec<(L, R), O>
     for PairCodec<L, R, Lc, Rc, O>
 {
-    fn encode(&self, ops: &O, value: &(L, R)) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &(L, R), ctx: &mut Context) -> DataResult<O::T> {
         Ok(ops.create_map([
-            ("left".to_string(), self.left.encode(ops, &value.0)?),
-            ("right".to_string(), self.right.encode(ops, &value.1)?),
+            ("left".to_string(), self.left.encode(ops, &value.0, ctx)?),
+            ("right".to_string(), self.right.encode(ops, &value.1, ctx)?),
         ]))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<(L, R)> {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<(L, R)> {
         let obj = ops.get_map(value)?;
         let left = obj.get("left")?;
-        let p1 = self.left.decode(ops, left)?;
+        let p1 = self.left.decode(ops, left, ctx)?;
         let right = obj.get("right")?;
-        let p2 = self.right.decode(ops, right)?;
+        let p2 = self.right.decode(ops, right, ctx)?;
         Ok((p1, p2))
     }
 }
@@ -167,7 +167,7 @@ pub(crate) struct BoundedCodec<
 impl<T: PartialOrd + Debug, C: Codec<T, O>, R: RangeBounds<T>, O: CodecOps> Codec<T, O>
     for BoundedCodec<T, C, R, O>
 {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
         if !self.range.contains(value) {
             Err(DataError::new_custom(&alloc::format!(
                 "value must be in bounds of {:?} to {:?}",
@@ -175,12 +175,12 @@ impl<T: PartialOrd + Debug, C: Codec<T, O>, R: RangeBounds<T>, O: CodecOps> Code
                 self.range.end_bound()
             )))
         } else {
-            self.codec.encode(ops, value)
+            self.codec.encode(ops, value, ctx)
         }
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
-        let decoded = self.codec.decode(ops, value)?;
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        let decoded = self.codec.decode(ops, value, ctx)?;
         if self.range.contains(&decoded) {
             Ok(decoded)
         } else {
@@ -198,12 +198,12 @@ pub struct DynamicCodec<T, O: CodecOps> {
 }
 
 impl<T, O: CodecOps> Codec<T, O> for DynamicCodec<T, O> {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
-        self.codec.as_ref().encode(ops, value)
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
+        self.codec.as_ref().encode(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
-        self.codec.as_ref().decode(ops, value)
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        self.codec.as_ref().decode(ops, value, ctx)
     }
 }
 
@@ -220,27 +220,27 @@ impl<T, O: CodecOps> Clone for ArcCodec<T, O> {
 }
 
 impl<T, O: CodecOps> Codec<T, O> for ArcCodec<T, O> {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
-        self.codec.as_ref().encode(ops, value)
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
+        self.codec.as_ref().encode(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
-        self.codec.as_ref().decode(ops, value)
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        self.codec.as_ref().decode(ops, value, ctx)
     }
 }
 
 pub struct FnCodec<T, O: CodecOps> {
-    pub(crate) encode: Box<dyn Fn(&O, &T) -> DataResult<O::T>>,
-    pub(crate) decode: Box<dyn Fn(&O, &O::T) -> DataResult<T>>,
+    pub(crate) encode: Box<dyn Fn(&O, &T, &mut Context) -> DataResult<O::T>>,
+    pub(crate) decode: Box<dyn Fn(&O, &O::T, &mut Context) -> DataResult<T>>,
 }
 
 impl<T, O: CodecOps> Codec<T, O> for FnCodec<T, O> {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
-        (self.encode)(ops, value)
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
+        (self.encode)(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
-        (self.decode)(ops, value)
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        (self.decode)(ops, value, ctx)
     }
 }
 
@@ -250,12 +250,12 @@ pub struct BoxCodec<T, O: CodecOps, C: Codec<T, O>> {
 }
 
 impl<T, O: CodecOps, C: Codec<T, O>> Codec<Box<T>, O> for BoxCodec<T, O, C> {
-    fn encode(&self, ops: &O, value: &Box<T>) -> DataResult<O::T> {
-        self.inner.encode(ops, value)
+    fn encode(&self, ops: &O, value: &Box<T>, ctx: &mut Context) -> DataResult<O::T> {
+        self.inner.encode(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<Box<T>> {
-        self.inner.decode(ops, value).map(|x| Box::new(x))
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Box<T>> {
+        self.inner.decode(ops, value, ctx).map(|x| Box::new(x))
     }
 }
 
@@ -266,16 +266,16 @@ pub struct TryElseCodec<T, O: CodecOps, Lc: Codec<T, O>, Rc: Codec<T, O>> {
 }
 
 impl<T, O: CodecOps, Lc: Codec<T, O>, Rc: Codec<T, O>> Codec<T, O> for TryElseCodec<T, O, Lc, Rc> {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
         self.lc
-            .encode(ops, value)
-            .or_else(|_| self.rc.encode(ops, value))
+            .encode(ops, value, ctx)
+            .or_else(|_| self.rc.encode(ops, value, ctx))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
         self.lc
-            .decode(ops, value)
-            .or_else(|_| self.rc.decode(ops, value))
+            .decode(ops, value, ctx)
+            .or_else(|_| self.rc.decode(ops, value, ctx))
     }
 }
 
@@ -288,17 +288,17 @@ pub struct EitherCodec<T, O: CodecOps, T2, Lc: Codec<T, O>, Rc: Codec<T2, O>> {
 impl<T, O: CodecOps, T2, Lc: Codec<T, O>, Rc: Codec<T2, O>> Codec<Either<T, T2>, O>
     for EitherCodec<T, O, T2, Lc, Rc>
 {
-    fn encode(&self, ops: &O, value: &Either<T, T2>) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &Either<T, T2>, ctx: &mut Context) -> DataResult<O::T> {
         match value {
-            Either::Left(value) => self.lc.encode(ops, value),
-            Either::Right(value) => self.rc.encode(ops, value),
+            Either::Left(value) => self.lc.encode(ops, value, ctx),
+            Either::Right(value) => self.rc.encode(ops, value, ctx),
         }
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<Either<T, T2>> {
-        match self.lc.decode(ops, value) {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Either<T, T2>> {
+        match self.lc.decode(ops, value, ctx) {
             Ok(v) => Ok(Either::Left(v)),
-            Err(_) => match self.rc.decode(ops, value) {
+            Err(_) => match self.rc.decode(ops, value, ctx) {
                 Ok(v) => Ok(Either::Right(v)),
                 Err(e) => Err(e),
             },
@@ -313,14 +313,14 @@ pub struct OrElseCodec<T, O: CodecOps, C: Codec<T, O>, F: Fn() -> T> {
 }
 
 impl<T, O: CodecOps, C: Codec<T, O>, F: Fn() -> T> Codec<T, O> for OrElseCodec<T, O, C, F> {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
-        self.codec.encode(ops, value)
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
+        self.codec.encode(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
         Ok(self
             .codec
-            .decode(ops, value)
+            .decode(ops, value, ctx)
             .unwrap_or_else(|_| (self.default)()))
     }
 }
@@ -343,12 +343,12 @@ impl<
     F: Fn(&O, &O::T) -> DataResult<DynamicCodec<T, O>>,
 > Codec<T, O> for DispatchCodec<T, O, E, F>
 {
-    fn encode(&self, ops: &O, value: &T) -> DataResult<O::T> {
-        (self.from_type_to_codec)(value)?.encode(ops, value)
+    fn encode(&self, ops: &O, value: &T, ctx: &mut Context) -> DataResult<O::T> {
+        (self.from_type_to_codec)(value)?.encode(ops, value, ctx)
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<T> {
-        (self.from_ops_to_codec)(ops, value)?.decode(ops, value)
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<T> {
+        (self.from_ops_to_codec)(ops, value)?.decode(ops, value, ctx)
     }
 }
 
@@ -362,11 +362,11 @@ macro_rules! make_numeric_codec {
         }
 
         impl<O: CodecOps> Codec<$t, O> for $struct_name<O> {
-            fn encode(&self, ops: &O, value: &$t) -> DataResult<O::T> {
+            fn encode(&self, ops: &O, value: &$t, _ctx: &mut Context) -> DataResult<O::T> {
                 Ok(ops.$make_name(value))
             }
 
-            fn decode(&self, ops: &O, value: &O::T) -> DataResult<$t> {
+            fn decode(&self, ops: &O, value: &O::T, _ctx: &mut Context) -> DataResult<$t> {
                 ops.$get_name(value)
             }
         }
@@ -418,22 +418,22 @@ pub struct UntypedMapCodec<T, O: CodecOps, C: Codec<T, O>> {
 }
 
 impl<T, O: CodecOps, C: Codec<T, O>> Codec<BTreeMap<String, T>, O> for UntypedMapCodec<T, O, C> {
-    fn encode(&self, ops: &O, value: &BTreeMap<String, T>) -> DataResult<O::T> {
+    fn encode(&self, ops: &O, value: &BTreeMap<String, T>, ctx: &mut Context) -> DataResult<O::T> {
         let entries = value
             .iter()
-            .map(|x| (x.0.clone(), self.codec.encode(ops, x.1).unwrap()))
+            .map(|x| (x.0.clone(), self.codec.encode(ops, x.1, ctx).unwrap()))
             .collect::<Vec<_>>();
         Ok(ops.create_map(entries))
     }
 
-    fn decode(&self, ops: &O, value: &O::T) -> DataResult<BTreeMap<String, T>> {
+    fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<BTreeMap<String, T>> {
         let mut map = BTreeMap::new();
         let Ok(view) = ops.get_map(value) else {
             return Ok(map);
         };
         for key in view.keys() {
             let value = view.get(&key)?;
-            let decode = self.codec.decode(ops, value)?;
+            let decode = self.codec.decode(ops, value, ctx)?;
             map.insert(key, decode);
         }
         Ok(map)
@@ -471,8 +471,8 @@ mod tests {
     #[test]
     fn f64_codec() {
         let value = 10.0;
-        let encoded = f64::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = f64::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = f64::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -480,8 +480,8 @@ mod tests {
     #[test]
     fn string_codec() {
         let value = "Hello!".into();
-        let encoded = String::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = String::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = String::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = String::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -489,8 +489,8 @@ mod tests {
     #[test]
     fn bool_codec() {
         let value = true;
-        let encoded = bool::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = bool::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = bool::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = bool::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -498,14 +498,14 @@ mod tests {
     #[test]
     fn numeric_codec() {
         let value = 10;
-        let encoded = i32::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = i32::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = i32::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = i32::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
 
         let value = 10;
-        let encoded = i64::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = i64::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = i64::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = i64::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -513,8 +513,14 @@ mod tests {
     #[test]
     fn list_codec() {
         let value = vec![10, 20, 30];
-        let encoded = i32::codec().list_of().encode(&JsonOps, &value).unwrap();
-        let decoded = i32::codec().list_of().decode(&JsonOps, &encoded).unwrap();
+        let encoded = i32::codec()
+            .list_of()
+            .encode_start(&JsonOps, &value)
+            .unwrap();
+        let decoded = i32::codec()
+            .list_of()
+            .decode_start(&JsonOps, &encoded)
+            .unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -523,8 +529,8 @@ mod tests {
     fn xmap_codec() {
         let value = 15;
         let codec = i32::codec().xmap(|x| x * 5, |x| x / 5);
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -533,8 +539,8 @@ mod tests {
     fn pair_codec() {
         let value = (15, "Hello".to_string());
         let codec = i32::codec().pair(String::codec());
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -543,29 +549,38 @@ mod tests {
     fn bounded_codec() {
         let value = 15;
         let codec = i32::codec().bounded(1..30);
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
 
-        assert!(codec.encode(&JsonOps, &75).is_err());
-        assert!(codec.encode(&JsonOps, &1).is_ok());
-        assert!(codec.encode(&JsonOps, &30).is_err());
+        assert!(codec.encode_start(&JsonOps, &75).is_err());
+        assert!(codec.encode_start(&JsonOps, &1).is_ok());
+        assert!(codec.encode_start(&JsonOps, &30).is_err());
     }
 
     #[test]
     fn dynamic_codec() {
         let value = 10.0;
-        let encoded = f64::codec().dynamic().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec().dynamic().decode(&JsonOps, &encoded).unwrap();
+        let encoded = f64::codec()
+            .dynamic()
+            .encode_start(&JsonOps, &value)
+            .unwrap();
+        let decoded = f64::codec()
+            .dynamic()
+            .decode_start(&JsonOps, &encoded)
+            .unwrap();
         assert_eq!(decoded, value);
     }
 
     #[test]
     fn arc_codec() {
         let value = 10.0;
-        let encoded = f64::codec().arc().encode(&JsonOps, &value).unwrap();
-        let decoded = f64::codec().dynamic().decode(&JsonOps, &encoded).unwrap();
+        let encoded = f64::codec().arc().encode_start(&JsonOps, &value).unwrap();
+        let decoded = f64::codec()
+            .dynamic()
+            .decode_start(&JsonOps, &encoded)
+            .unwrap();
         assert_eq!(decoded, value);
     }
 
@@ -581,8 +596,8 @@ mod tests {
             .build(|value| Wrapper { value });
 
         let value = Wrapper { value: None };
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
     }
 
@@ -598,12 +613,12 @@ mod tests {
             .build(|value| Wrapper { value });
 
         let value = Wrapper { value: 0.0 };
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
         assert_eq!(value, decoded);
 
         let empty_obj = JsonValue::new_object();
-        let decoded = codec.decode(&JsonOps, &empty_obj).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &empty_obj).unwrap();
         assert_eq!(Wrapper { value: 12.1 }, decoded);
     }
 
@@ -649,8 +664,8 @@ mod tests {
 
         let codec = LinkedList::codec();
 
-        let encoded = codec.encode(&JsonOps, &value).unwrap();
-        let decoded = codec.decode(&JsonOps, &encoded).unwrap();
+        let encoded = codec.encode_start(&JsonOps, &value).unwrap();
+        let decoded = codec.decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(value, decoded);
     }
@@ -712,13 +727,17 @@ mod tests {
         }
 
         let value = UnknownType::Number(10.0);
-        let encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = UnknownType::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = UnknownType::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec()
+            .decode_start(&JsonOps, &encoded)
+            .unwrap();
         assert_eq!(value, decoded);
 
         let value = UnknownType::String("foobar".to_string());
-        let encoded = UnknownType::codec().encode(&JsonOps, &value).unwrap();
-        let decoded = UnknownType::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = UnknownType::codec().encode_start(&JsonOps, &value).unwrap();
+        let decoded = UnknownType::codec()
+            .decode_start(&JsonOps, &encoded)
+            .unwrap();
         assert_eq!(value, decoded);
     }
 
@@ -729,8 +748,8 @@ mod tests {
         map.insert("y".to_string(), 20.0);
         map.insert("z".to_string(), 30.0);
 
-        let encoded = BTreeMap::codec().encode(&JsonOps, &map).unwrap();
-        let decoded = BTreeMap::codec().decode(&JsonOps, &encoded).unwrap();
+        let encoded = BTreeMap::codec().encode_start(&JsonOps, &map).unwrap();
+        let decoded = BTreeMap::codec().decode_start(&JsonOps, &encoded).unwrap();
 
         assert_eq!(map, decoded);
     }
