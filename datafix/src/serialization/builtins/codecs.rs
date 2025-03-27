@@ -58,8 +58,10 @@ pub(crate) struct ListCodec<T, C: Codec<T, O>, O: CodecOps> {
 impl<T, C: Codec<T, O>, O: CodecOps> Codec<Vec<T>, O> for ListCodec<T, C, O> {
     fn encode(&self, ops: &O, value: &Vec<T>, ctx: &mut Context) -> DataResult<O::T> {
         let mut list = Vec::new();
-        for element in value {
-            list.push(self.inner.encode(ops, element, ctx)?);
+        for element in value.into_iter().enumerate() {
+            ctx.push_array(element.0);
+            list.push(self.inner.encode(ops, element.1, ctx)?);
+            ctx.pop();
         }
         Ok(ops.create_list(list))
     }
@@ -67,8 +69,11 @@ impl<T, C: Codec<T, O>, O: CodecOps> Codec<Vec<T>, O> for ListCodec<T, C, O> {
     fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Vec<T>> {
         let list = ops.get_list(value)?;
         let mut vec = Vec::new();
-        for item in list.into_iter() {
-            vec.push(self.inner.decode(ops, &item, ctx)?);
+
+        for item in list.into_iter().enumerate() {
+            ctx.push_array(item.0);
+            vec.push(self.inner.decode(ops, &item.1, ctx)?);
+            ctx.pop();
         }
         Ok(vec)
     }

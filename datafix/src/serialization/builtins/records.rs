@@ -149,7 +149,7 @@ impl<O: CodecOps> Codec<(), O> for UnitCodec {
     }
 }
 
-/// I'm sorry. NO::T even God himself understands this macro anymore.
+/// I'm sorry. Not even God himself understands this macro anymore.
 macro_rules! record_codec {
     (
         name: $struct_name:ident,
@@ -183,7 +183,9 @@ macro_rules! record_codec {
 
             fn decode(&self, ops: &O, value: &O::T, ctx: &mut Context) -> DataResult<Struct> {
                 $(
+                    ctx.push_field(self.$field.field_name());
                     let $field: $field_return_type = self.$field.get_field(ops, value, ctx)?;
+                    ctx.pop();
                 )*
                 let map = ops.get_map(value)?;
                 let slice = [$(&self.$field.field_name()),*];

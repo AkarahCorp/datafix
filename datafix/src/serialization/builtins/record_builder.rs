@@ -48,7 +48,7 @@ impl<O: CodecOps> MapCodecBuilder<UnitCodec, O> {
     }
 }
 
-/// I'm sorry. NO::T even God himself understands this macro anymore.
+/// I'm sorry. Not even God himself understands this macro anymore.
 macro_rules! impl_record_codec_builder {
     (
         type: $type:ident,
