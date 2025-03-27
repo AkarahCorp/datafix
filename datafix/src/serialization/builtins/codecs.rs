@@ -58,7 +58,7 @@ pub(crate) struct ListCodec<T, C: Codec<T, O>, O: CodecOps> {
 impl<T, C: Codec<T, O>, O: CodecOps> Codec<Vec<T>, O> for ListCodec<T, C, O> {
     fn encode(&self, ops: &O, value: &Vec<T>, ctx: &mut Context) -> DataResult<O::T> {
         let mut list = Vec::new();
-        for element in value.into_iter().enumerate() {
+        for element in value.iter().enumerate() {
             ctx.push_array(element.0);
             list.push(self.inner.encode(ops, element.1, ctx)?);
             ctx.pop();
