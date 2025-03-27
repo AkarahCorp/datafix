@@ -144,8 +144,8 @@ impl<O: CodecOps> Codec<(), O> for UnitCodec {
         Ok(ops.create_unit())
     }
 
-    fn decode(&self, ops: &O, value: &O::T, _ctx: &mut Context) -> DataResult<()> {
-        ops.get_unit(value)
+    fn decode(&self, _ops: &O, _value: &O::T, _ctx: &mut Context) -> DataResult<()> {
+        Ok(())
     }
 }
 
