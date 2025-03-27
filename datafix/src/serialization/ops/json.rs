@@ -63,6 +63,7 @@ impl CodecOps for JsonOps {
     fn get_string(&self, value: &JsonValue) -> crate::result::DataResult<alloc::string::String> {
         match value {
             JsonValue::String(string) => Ok(string.clone()),
+            JsonValue::Short(short) => Ok(short.to_string()),
             _ => Err(DataError::unexpected_type("string")),
         }
     }
