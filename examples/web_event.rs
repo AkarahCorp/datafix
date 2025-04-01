@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::Deref, sync::LazyLock};
 
 use datafix::{
     result::{CodecResult, DataError},
@@ -15,17 +15,18 @@ pub enum WebEvent {
     Key(String),
 }
 
-impl WebEvent {
-    pub fn leak_string(str: &str) -> &'static String {
-        Box::leak(Box::new(str.to_string()))
-    }
+static PAGE_LOAD: LazyLock<String> = LazyLock::new(|| String::from("page_load"));
+static PAGE_UNLOAD: LazyLock<String> = LazyLock::new(|| String::from("page_unload"));
+static CLICK: LazyLock<String> = LazyLock::new(|| String::from("click"));
+static KEY: LazyLock<String> = LazyLock::new(|| String::from("key"));
 
+impl WebEvent {
     pub fn event(&self) -> &String {
         match self {
-            WebEvent::PageLoad => Self::leak_string("page_load"),
-            WebEvent::PageUnload => Self::leak_string("page_unload"),
-            WebEvent::Click(_) => Self::leak_string("click"),
-            WebEvent::Key(_) => Self::leak_string("key"),
+            WebEvent::PageLoad => &PAGE_LOAD,
+            WebEvent::PageUnload => &PAGE_UNLOAD,
+            WebEvent::Click(_) => &CLICK,
+            WebEvent::Key(_) => &KEY,
         }
     }
 }
@@ -34,7 +35,8 @@ impl WebEvent {
     pub fn page_load_codec<S: CodecOps>() -> impl Codec<Self, S> {
         MapCodecBuilder::new()
             .field(
-                Codecs::constant(String::codec(), "page_load").field_of("event", WebEvent::event),
+                Codecs::constant(String::codec(), PAGE_LOAD.deref())
+                    .field_of("event", WebEvent::event),
             )
             .build(|_| WebEvent::PageLoad)
     }
@@ -42,14 +44,17 @@ impl WebEvent {
     pub fn page_unload_codec<S: CodecOps>() -> impl Codec<Self, S> {
         MapCodecBuilder::new()
             .field(
-                Codecs::constant(String::codec(), "page_unload").field_of("event", WebEvent::event),
+                Codecs::constant(String::codec(), PAGE_UNLOAD.deref())
+                    .field_of("event", WebEvent::event),
             )
             .build(|_| WebEvent::PageUnload)
     }
 
     pub fn click_event<S: CodecOps>() -> impl Codec<Self, S> {
         MapCodecBuilder::new()
-            .field(Codecs::constant(String::codec(), "click").field_of("event", WebEvent::event))
+            .field(
+                Codecs::constant(String::codec(), CLICK.deref()).field_of("event", WebEvent::event),
+            )
             .field(ClickPos::codec().fallible_field_of("pos", |x| match x {
                 WebEvent::Click(pos) => Ok(pos),
                 _ => Err(DataError::new_custom("WebEvent::Event")),
@@ -59,7 +64,9 @@ impl WebEvent {
 
     pub fn key_event<S: CodecOps>() -> impl Codec<Self, S> {
         MapCodecBuilder::new()
-            .field(Codecs::constant(String::codec(), "key").field_of("event", WebEvent::event))
+            .field(
+                Codecs::constant(String::codec(), KEY.deref()).field_of("event", WebEvent::event),
+            )
             .field(String::codec().fallible_field_of("value", |x| match x {
                 WebEvent::Key(key) => Ok(key),
                 _ => Err(DataError::new_custom("WebEvent::Key")),
